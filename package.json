@@ -1,6 +1,6 @@
 {
-  "name": "sieve-builder",
-  "description": "Generates a sieve script from a simple JSON specification",
+  "name": "email-filter-builder",
+  "description": "Generates email filters from a simple JSON specification. Outputs Sieve scripts (ProtonMail) and Gmail's XML import format.",
   "version": "0.0.0",
   "author": {
     "name": "Raine Revere",
