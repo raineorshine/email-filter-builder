@@ -4,6 +4,10 @@ Operational knowledge for future agent sessions working on this project and auto
 
 **Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — gitignored, at the repo root of the main checkout; like `filters.js`, it does not appear in worktrees.
 
+## Skills
+
+- `shortwave` ([.claude/skills/shortwave/SKILL.md](.claude/skills/shortwave/SKILL.md)) — Shortwave's label/filter model vs Gmail, what syncs and what doesn't, settings URLs, UI automation gotchas. Load before any Shortwave work.
+
 ## Communication
 
 - Report outcomes tersely: what was found, what was done — "1 instance: AGENTS.md. Removed and amended." Skip process narration and thoroughness reassurances; verify silently and state conclusions.
