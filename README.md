@@ -59,7 +59,7 @@ if allof (header :contains "Subject" "Here is your Grubhub Receipt", address :al
     <title>Mail Filter</title>
     <content></content>
     <apps:property name='from' value='noreply@grubhub.com'/>
-    <apps:property name='subject' value='Here is your Grubhub Receipt'/>
+    <apps:property name='subject' value='&quot;Here is your Grubhub Receipt&quot;'/>
     <apps:property name='label' value='Receipts'/>
     <apps:property name='shouldArchive' value='true'/>
     <apps:property name='sizeOperator' value='s_sl'/>
@@ -79,7 +79,9 @@ if allof (header :contains "Subject" "Here is your Grubhub Receipt", address :al
 
 Import `out/gmail.xml` in Gmail: **Settings → See all settings → Filters and Blocked Addresses → Import filters**.
 
-- Each condition becomes its own filter, since Gmail has no meaningful limit on the number of filters (unlike ProtonMail).
-- A `fileinto` destination of `archive` maps to "Skip the Inbox (Archive it)"; every other destination maps to a label (created automatically on import if it does not exist).
+- Each condition becomes its own filter, since Gmail's limit of 1,000 filters is far less restrictive than ProtonMail's 50k-character sieve limit.
+- A `fileinto` destination of `archive` maps to "Skip the Inbox (Archive it)", `trash` maps to "Delete it", and every other destination maps to a label (created automatically on import if it does not exist).
 - Gmail applies at most one label per filter, so a filter with multiple labels is expanded into one imported filter per label.
+- Sieve `:matches` globs in `from` are translated to Gmail's token-based search: `*@example.com` and `*@*.example.com` become `example.com`, and patterns like `billing.*@example.com` become `billing example.com` (terms are ANDed). A token fragment left dangling by a wildcard (the `s` of `*s@example.com`) cannot be expressed in Gmail search and is dropped, which errs on the side of matching more broadly.
+- Multi-word subjects are quoted so Gmail matches the exact phrase, mirroring sieve's `:contains`.
 - Labels are applied by Gmail to incoming mail server-side, so they appear in any Gmail client, including Shortwave.
