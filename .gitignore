@@ -3,3 +3,5 @@ filters.js
 AGENTS.local.md
 .DS_Store
 out
+.gmail-credentials.json
+.gmail-token.json
