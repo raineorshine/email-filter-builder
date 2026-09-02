@@ -27,6 +27,14 @@ Shortwave (app.shortwave.com) is a Gmail client. Gmail remains the backend for m
 
 Near-identical names across namespaces are easy to misread in the "Label as" picker.
 
+## Built-in labels have no off switch
+
+- Settings → Labels renders the nine built-in labels with an ⓘ info icon per row and no toggle, hide, or delete control. Nothing in Labels, Inbox setup, or Appearance stops the classifier from applying them.
+- A built-in label is a *label only* — it does not create a bundle or an inbox split by itself. Bundles (Inbox setup → Label bundles) and splits are separately opt-in, so "hide its bundle" is not an available workaround.
+- The stated override is a filter, per the section header: built-in labels "are automatically added to new emails. You can override this behavior by defining filters." An AI filter can target a built-in label (observed on an existing filter's action chip); the Create AI filter picker list was not confirmed.
+- To keep a built-in label out of the inbox without removing it: Settings → Filters → **Label skip inbox**. The label stays applied and stays in the sidebar and picker.
+- Verified 2026-09 against Updates; the row UI is identical for all nine.
+
 ## Rules and filters
 
 - "Always Apply" / auto-apply rules (Settings → Filters → Label auto-apply rules) are stored in **Shortwave's backend** — never as Gmail filters, even for plain sender→label rules targeting Gmail labels. They don't count toward Gmail's 1,000-filter cap.
@@ -44,6 +52,8 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
 - SPA; settings at `/settings/labels`, `/settings/filters`, `/settings/inbox`. A "We're still importing your email" interstitial may appear — click Refresh.
 - Rule-row gear icons are hover-revealed and absent from the accessibility tree: locate them by geometry in JS (element at the same row height, right of the row) and dispatch `mouseover/mousedown/mouseup/click` MouseEvents.
 - The rule dialog is titled "Auto-apply rules for \<Label\>" with ALWAYS APPLY / ALWAYS REMOVE sender lists.
+- Coordinate clicks are unreliable here as in Gmail — the screenshot frame and the page viewport report different sizes (1028×1176 vs 919×1051 in one session), so screenshot coordinates land ~15% off. Use refs from find/read_page, or dispatch events from JS.
+- "Create AI filter" (Settings → Filters) did not open its dialog from either a ref click or a coordinate click — no modal rendered either way. Unresolved; budget extra time if a session needs that flow.
 
 # Gmail
 
