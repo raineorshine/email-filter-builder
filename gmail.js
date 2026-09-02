@@ -42,11 +42,11 @@ const Term = condition => {
   return fromQuery && subjectQuery ? `(from:(${fromQuery}) subject:(${subjectQuery}))` : fromQuery ? `from:(${fromQuery})` : subjectQuery ? `subject:(${subjectQuery})` : null
 }
 
-/** Greedily packs terms into OR queries of at most maxQueryLength characters. A single term longer than the limit still gets its own query, since a term cannot be split. */
+/** Greedily packs terms into OR queries of at most maxQueryLength characters. Duplicate terms are dropped first: distinct globs can reduce to the same Gmail query (e.g. "*@bank-example.com" and "*@*.bank-example.com" both become "from:(bank-example.com)"), and repeating one only consumes query length. A single term longer than the limit still gets its own query, since a term cannot be split. */
 const chunkTerms = (terms, maxQueryLength) => {
   const queries = []
   let current = ''
-  for (const term of terms) {
+  for (const term of new Set(terms)) {
     const next = current ? `${current} OR ${term}` : term
     if (current && next.length > maxQueryLength) {
       queries.push(current)

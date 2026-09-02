@@ -79,6 +79,18 @@ test('a single term longer than maxQueryLength still gets its own filter', () =>
   expect(queries(gmail(filters, { maxQueryLength: 10, updated }))).toEqual(['from:(a-very-long-address@a-very-long-domain-name.example.com)'])
 })
 
+test('duplicate terms are dropped so they do not consume query length', () => {
+  const filters = [
+    {
+      // distinct globs that reduce to the same Gmail query
+      conditions: ['*@bank-example.com', '*@*.bank-example.com', 'noreply@lyft.com'],
+      actions: [{ fileinto: ['Finance'] }],
+    },
+  ]
+
+  expect(queries(gmail(filters, { updated }))).toEqual(['from:(bank-example.com) OR from:(noreply@lyft.com)'])
+})
+
 test('multiple labels expand to one entry per label with the same merged query', () => {
   const filters = [
     {
