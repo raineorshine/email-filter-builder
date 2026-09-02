@@ -4,6 +4,8 @@ Operational knowledge for future agent sessions working on this project and auto
 
 **Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — gitignored, at the repo root of the main checkout; like `filters.js`, it does not appear in worktrees.
 
+Tests and docstrings use placeholder domains ending in `-example.com`. Never paste a real sender from `filters.js` into a test, docstring, or commit message, even as a throwaway illustration — a real bank or vendor domain identifies the account holder just as well as the address does. The same goes for counts derived from `filters.js` (rule totals, generated entry counts): describe the effect qualitatively instead.
+
 ## Skills
 
 - `shortwave` ([.claude/skills/shortwave/SKILL.md](.claude/skills/shortwave/SKILL.md)) — Shortwave's label/filter model vs Gmail, what syncs and what doesn't, settings URLs, UI automation gotchas. Load before any Shortwave work.
@@ -22,13 +24,22 @@ Operational knowledge for future agent sessions working on this project and auto
 - `email-filter-builder` generates email filters from `filters.js` (gitignored, personal, lives at the repo root of the main checkout).
 - `node bin.js filters.js` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
 - Mapping rules are documented in README.md. Key invariants: conditions sharing the same actions are OR-merged into `hasTheWord` queries chunked at 600 chars (`maxQueryLength` option); `archive` → shouldArchive; `trash` → shouldTrash; one label per Gmail filter (multi-label entries expand); sieve globs become Gmail token search terms — dangling fragments ≤3 chars are dropped, longer ones kept.
+- Glob shapes are exact in sieve: `*@domain.com` matches only the bare domain and `*@*.domain.com` only subdomains. A sender like `no-reply@account.vendor.com` is **not** matched by `*@vendor.com`, which silently produces a dead rule; filters.js pairs both forms when a vendor sends from either. Gmail collapses the two to the same token query, so `chunkTerms` dedupes terms before packing.
 - Before importing after renderer changes, audit the generated queries against the real filters.js. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
+
+## Debugging why a message routed the way it did
+
+- Simulate `filters.js` locally instead of poking the live account; it is faster and does not depend on a mail UI being reachable. Translate a `from` glob to an anchored case-insensitive regex (`*` → `.*`) and a `subject` to a case-insensitive substring test; fields within one condition are ANDed, conditions within a rule are ORed. Print every matching rule with its `fileinto` destinations — the bug is usually a rule you did not expect to match, not the one you were looking at.
+- Watch for sender-less conditions (`{ subject: 'Receipt' }`). They match any sender and catch far more than intended; under Gmail that only mislabels, but it is the first thing to check when mail lands under a surprising label.
 
 ## Gmail account
 
 - Target account and current filter/label specifics: see **AGENTS.local.md**. Verify the account in the browser tab title before acting.
 - Gmail caps filters at 1,000 per account; check the current count before large imports.
-- Gmail applies **all** matching filters — no first-match ordering like ProtonMail sieve. Overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views).
+- Gmail applies **all** matching filters — no first-match ordering like ProtonMail sieve, and no "stop processing" action. Overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views). Rule order in `filters.js` is documentation, not precedence.
+  - Archiving only removes the `INBOX` label and nothing adds it back, so a message is archived if **any** matching rule archives it. Keeping something in the inbox means no matching rule may archive it.
+  - ProtonMail sieve behaved the opposite way: the first matching rule claimed the message and later rules never ran, so a matching non-archiving rule suppressed a catch-all archive filter. Ordering comments in `filters.js` that assume an earlier rule blocks a later one are ProtonMail-era and do not hold under Gmail.
+  - ProtonMail's web app (mail.proton.me and account.proton.me) rate-limits the whole app bootstrap under automation — "The system has received too many requests recently" — and can stay blocked for 10+ minutes even while the API itself answers. Prefer reasoning from `filters.js` and the generated files over driving the Proton UI.
 - A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs** — filters can only be managed through the Gmail settings UI.
   - `search_threads` label queries take label **IDs** (e.g. `label:Label_42`), not display names; get IDs from `list_labels`.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
@@ -51,7 +62,7 @@ Operational knowledge for future agent sessions working on this project and auto
 
 - No automation path can click a native dialog. While one is pending, computer-tool actions (screenshot/click) fail with "Cannot access a chrome-extension:// URL of different extension", while DOM tools (read_page/find/get_page_text/javascript) keep working. Recover by closing the wedged tab and creating a fresh one.
 - Overriding `window.confirm` from javascript_tool does **not** work — the tool runs in an isolated world; the page still sees the native function.
-- **Danger:** a pending dialog can be auto-*accepted* when its tab is destroyed — a deletion that appeared cancelled can land minutes later. Never leave a delete dialog pending, and recount filters afterward rather than assuming a cancelled delete stayed cancelled.
+- **Danger:** a pending dialog can be auto-_accepted_ when its tab is destroyed — a deletion that appeared cancelled can land minutes later. Never leave a delete dialog pending, and recount filters afterward rather than assuming a cancelled delete stayed cancelled.
 - Deletions should be done by the user (tick checkboxes → Delete → one OK confirms the whole batch), or with the user present to click OK.
 
 **Gmail settings DOM notes:**
