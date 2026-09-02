@@ -29,6 +29,8 @@ Near-identical names across namespaces are easy to misread in the "Label as" pic
 
 Keep all deterministic sender/subject→label routing in `filters.js` → Gmail filters (portable, versioned, client-independent). Use Shortwave's layer only for what Gmail cannot express: AI classification, bundles, delivery schedules, splits. Avoid "Always Apply".
 
+An AI filter may deliberately overlap a deterministic rule — both applying the same Gmail user label — for coverage. When configuring it, pick the Gmail label (plain tag icon, `gmail%2FLabel_<id>` URL), not the same-named built-in; the built-in categories are ignored but left to coexist.
+
 ## Automating the Shortwave web app
 
 - SPA; settings at `/settings/labels`, `/settings/filters`, `/settings/inbox`. A "We're still importing your email" interstitial may appear — click Refresh.
