@@ -1,6 +1,7 @@
 node_modules
 filters.js
 AGENTS.local.md
+CLAUDE.local.md
 .DS_Store
 out
 .gmail-credentials.json

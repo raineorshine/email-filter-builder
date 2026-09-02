@@ -1,6 +1,6 @@
 # email-filter-builder
 
-Generates email filters from a simple, declarative JSON specification. Outputs both a [Sieve](https://www.rfc-editor.org/info/rfc5228) script (ProtonMail) and Gmail's XML import format.
+Generates email filters from a simple, declarative JSON specification. Outputs [Sieve](https://www.rfc-editor.org/info/rfc5228) scripts (ProtonMail) and Gmail filters, either as an XML import file or synced straight to an account through the Gmail API.
 
 Limited to the specific use case of matching by subject and sender, and filing into folders/labels.
 
@@ -46,6 +46,7 @@ ${gmailOutput}
 - ProtonMail spec: https://proton.me/support/sieve-advanced-custom-filters
   - Note: ProtonMail does not support the [body](https://datatracker.ietf.org/doc/html/rfc5173) extension.
   - Limited to 50k characters, so many filters are combined into one `anyof` rule and the output is split into 50k chunks.
+- Proton applies every matching filter in list order, and when two filters move a message to different folders [the later one wins](https://proton.me/support/email-inbox-filters). Keep any hand-made folder-moving filter (a catch-all "move to Archive", say) _above_ the generated scripts, or it silently overrides their `trash` rules. The generated scripts contain no `stop`, so every later filter still runs.
 
 ## Gmail
 
@@ -86,6 +87,6 @@ Import `out/gmail.xml` in Gmail: **Settings → See all settings → Filters and
 - Each merged query is capped at 600 characters, since very long queries can silently misbehave; larger groups split across multiple filters. Tune with `gmail(filters, { maxQueryLength })`.
 - A `fileinto` destination of `archive` maps to "Skip the Inbox (Archive it)" (`removeLabelIds: [INBOX]` over the API), `trash` maps to "Delete it" (`addLabelIds: [TRASH]`), and every other destination maps to a label, created if it does not exist.
 - Gmail applies at most one label per filter, so a filter with multiple labels is expanded into one imported filter per label.
-- Sieve `:matches` globs in `from` are translated to Gmail's token-based search: `*@example.com` and `*@*.example.com` become `example.com`, and patterns like `billing.*@example.com` become `billing example.com` (terms are ANDed). A token fragment left dangling by a wildcard (the `s` of `*s@example.com`) cannot be expressed in Gmail search and is dropped, which errs on the side of matching more broadly.
+- Sieve `:matches` globs in `from` are translated to Gmail's token-based search: `*@example.com` and `*@*.example.com` become `example.com`, and patterns like `billing.*@example.com` become `billing example.com` (terms are ANDed). A short token fragment left dangling by a wildcard (the `s` of `*s@example.com`) cannot be expressed in Gmail search and is dropped, which errs on the side of matching more broadly; a dangling fragment longer than three characters is kept, since dropping it (the `promoalerts` of `*@promoalerts*.com`) would match far too much.
 - Multi-word subjects are quoted so Gmail matches the exact phrase, mirroring sieve's `:contains`.
 - Labels are applied by Gmail to incoming mail server-side, so they appear in any Gmail client, including Shortwave.
