@@ -93,3 +93,37 @@ test('allow naked email condition', () => {
 if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
 if allof (address :all :matches "From" "noreply@lyft.com"){fileinto "archive";}`)
 })
+
+test('list', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Blockchain Community', list: 'abc123.456.list-id.mcsv.net' }],
+      actions: [
+        {
+          fileinto: ['Blockchain Community'],
+        },
+      ],
+    },
+  ]
+
+  expect(sieve(filters)).toBe(`require ["include", "environment", "variables", "relational", "comparator-i;ascii-numeric", "spamtest", "fileinto", "imap4flags"];
+if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
+if allof (header :contains "List-Id" "abc123.456.list-id.mcsv.net"){fileinto "Blockchain Community";}`)
+})
+
+test('list combines with from and subject', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Digest', from: 'news@example.com', subject: 'Weekly Digest', list: 'abc123.list-id.example.com' }],
+      actions: [
+        {
+          fileinto: ['archive'],
+        },
+      ],
+    },
+  ]
+
+  expect(sieve(filters)).toBe(`require ["include", "environment", "variables", "relational", "comparator-i;ascii-numeric", "spamtest", "fileinto", "imap4flags"];
+if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
+if allof (header :contains "Subject" "Weekly Digest", address :all :matches "From" "news@example.com", header :contains "List-Id" "abc123.list-id.example.com"){fileinto "archive";}`)
+})

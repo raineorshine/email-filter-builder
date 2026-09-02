@@ -6,11 +6,14 @@ if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value 
 
 const Action = ({ fileinto }) => fileinto.map(Fileinto).join('')
 
-const Condition = ({ from, subject }) => [Subject(subject), From(from)].filter(x => x).join(', ')
+const Condition = ({ from, list, subject }) => [Subject(subject), From(from), List(list)].filter(x => x).join(', ')
 
 const Fileinto = dest => `fileinto "${dest}";`
 
 const From = from => from && `address :all :matches "From" "${from}"`
+
+/** Converts a mailing list id into a List-Id header test, mirroring Gmail's `list:` operator. Sieve has no dedicated list test, so the raw header is matched. */
+const List = list => list && `header :contains "List-Id" "${list}"`
 
 const Rule = ({ actions, condition }) => `if allof (${Condition(typeof condition === 'string' ? { from: condition } : condition)}){${actions.map(Action).join('')}}`
 

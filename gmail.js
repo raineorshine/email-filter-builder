@@ -34,12 +34,13 @@ const From = from =>
 /** Converts a sieve :contains subject into a Gmail subject expression. Multi-word subjects are quoted so Gmail matches the phrase rather than the words in any order. */
 const Subject = subject => (/\s/.test(subject) ? `"${subject}"` : subject)
 
-/** Renders a single condition as a Gmail search term. */
+/** Renders a single condition as a Gmail search term. Criteria are ANDed, and a term with more than one is parenthesized so it survives OR-merging with other terms. */
 const Term = condition => {
-  const { from, subject } = typeof condition === 'string' ? { from: condition } : condition
+  const { from, list, subject } = typeof condition === 'string' ? { from: condition } : condition
   const fromQuery = from && From(from)
   const subjectQuery = subject && Subject(subject)
-  return fromQuery && subjectQuery ? `(from:(${fromQuery}) subject:(${subjectQuery}))` : fromQuery ? `from:(${fromQuery})` : subjectQuery ? `subject:(${subjectQuery})` : null
+  const parts = [fromQuery && `from:(${fromQuery})`, subjectQuery && `subject:(${subjectQuery})`, list && `list:(${list})`].filter(x => x)
+  return parts.length > 1 ? `(${parts.join(' ')})` : parts[0] || null
 }
 
 /** Greedily packs terms into OR queries of at most maxQueryLength characters. A single term longer than the limit still gets its own query, since a term cannot be split. */

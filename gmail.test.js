@@ -203,3 +203,27 @@ test('updated defaults to the current time', () => {
 
   expect(gmail(filters)).toMatch(/<updated>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z<\/updated>/)
 })
+
+test('list maps to the list: operator', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Blockchain Community', list: 'abc123.456.list-id.mcsv.net' }],
+      actions: [{ fileinto: ['Blockchain Community'] }],
+    },
+  ]
+
+  const output = gmail(filters, { updated })
+  expect(queries(output)).toEqual(['list:(abc123.456.list-id.mcsv.net)'])
+  expect(output).toContain(`<apps:property name='label' value='Blockchain Community'/>`)
+})
+
+test('list is ANDed with from and subject inside one parenthesized term', () => {
+  const filters = [
+    {
+      conditions: [{ from: 'news@example.com', subject: 'Weekly Digest', list: 'abc123.list-id.example.com' }],
+      actions: [{ fileinto: ['archive'] }],
+    },
+  ]
+
+  expect(queries(gmail(filters, { updated }))).toEqual(['(from:(news@example.com) subject:(&quot;Weekly Digest&quot;) list:(abc123.list-id.example.com))'])
+})
