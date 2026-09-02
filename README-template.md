@@ -2,7 +2,7 @@
 
 Generates email filters from a simple, declarative JSON specification. Outputs [Sieve](https://www.rfc-editor.org/info/rfc5228) scripts (ProtonMail) and Gmail filters, either as an XML import file or synced straight to an account through the Gmail API.
 
-Limited to the specific use case of matching by subject and sender, and filing into folders/labels.
+Limited to the specific use case of matching by sender, subject, and mailing list, and filing into folders/labels.
 
 ## Usage
 
@@ -39,6 +39,15 @@ ${sieveOutput}
 ```xml
 ${gmailOutput}
 ```
+
+## Spec
+
+Each filter pairs `conditions` with `actions`. Conditions are OR'd, and the keys within one condition are ANDed. A bare string is shorthand for `{ from }`.
+
+- `from` — sender address, as a Sieve `:matches` glob (`*@example.com`). Rendered as `address :all :matches "From"` in Sieve and a `from:` token search in Gmail (see [Mapping](#mapping)).
+- `subject` — text the subject contains. Rendered as `header :contains "Subject"` in Sieve and a quoted `subject:` phrase in Gmail.
+- `list` — mailing list id, as it appears in the `List-Id` header without the angle brackets (`dev.example.com`). Rendered as `header :contains "List-Id"` in Sieve and Gmail's `list:` operator, which searches the same header.
+- `comment` — ignored by both renderers.
 
 ## Sieve (ProtonMail)
 
@@ -83,7 +92,7 @@ Import `out/gmail.xml` in Gmail: **Settings → See all settings → Filters and
 
 ### Mapping
 
-- Conditions that share the same actions are OR-merged into as few filters as possible to stay well under Gmail's 1,000-filter cap. Merged criteria go in the filter's "Has the words" field using `from:`/`subject:` search operators.
+- Conditions that share the same actions are OR-merged into as few filters as possible to stay well under Gmail's 1,000-filter cap. Merged criteria go in the filter's "Has the words" field using `from:`/`subject:`/`list:` search operators.
 - Each merged query is capped at 600 characters, since very long queries can silently misbehave; larger groups split across multiple filters. Tune with `gmail(filters, { maxQueryLength })`.
 - A `fileinto` destination of `archive` maps to "Skip the Inbox (Archive it)" (`removeLabelIds: [INBOX]` over the API), `trash` maps to "Delete it" (`addLabelIds: [TRASH]`), and every other destination maps to a label, created if it does not exist.
 - Gmail applies at most one label per filter, so a filter with multiple labels is expanded into one imported filter per label.

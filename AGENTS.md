@@ -177,7 +177,7 @@ This has a sharp consequence for this project:
 
 ### What the Proton UI filter builder can express
 
-Worth knowing before assuming a rule has to live in `filters.js` — this repo's builder supports only sender/subject conditions and `fileinto` actions, so anything below has to be a hand-made Proton filter:
+Worth knowing before assuming a rule has to live in `filters.js` — this repo's builder supports only sender/subject/mailing-list conditions and `fileinto` actions, so anything below has to be a hand-made Proton filter:
 
 - **Conditions:** the subject / the sender / the recipient / the attachment. Operators: contains, is exactly, begins with, ends with, matches, plus a negation of each.
 - **Actions:** label as (any number), move to (exactly one folder), mark as read and/or starred, send auto-reply.

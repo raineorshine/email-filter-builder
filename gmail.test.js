@@ -176,6 +176,28 @@ test('multi-word subject is quoted as a phrase', () => {
   expect(gmail(filters, { updated })).toContain(`<apps:property name='hasTheWord' value='subject:(&quot;Where&apos;s My Package?&quot;)'/>`)
 })
 
+test('list maps to the list: operator', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Dev list', list: 'dev.example.com' }],
+      actions: [{ fileinto: ['Lists'] }],
+    },
+  ]
+
+  expect(queries(gmail(filters, { updated }))).toEqual(['list:(dev.example.com)'])
+})
+
+test('list is ANDed with from and subject', () => {
+  const filters = [
+    {
+      conditions: [{ from: 'news@example.com', list: 'dev.example.com', subject: 'Weekly' }],
+      actions: [{ fileinto: ['Lists'] }],
+    },
+  ]
+
+  expect(queries(gmail(filters, { updated }))).toEqual(['(from:(news@example.com) subject:(Weekly) list:(dev.example.com))'])
+})
+
 test('escapes XML special characters', () => {
   const filters = [
     {

@@ -77,6 +77,62 @@ if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value 
 if allof (header :contains "Subject" "Hi"){fileinto "archive";}`)
 })
 
+test('list', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Dev list', list: 'dev.example.com' }],
+      actions: [
+        {
+          fileinto: ['Lists'],
+        },
+      ],
+    },
+  ]
+
+  expect(sieve(filters)).toBe(`require ["include", "environment", "variables", "relational", "comparator-i;ascii-numeric", "spamtest", "fileinto", "imap4flags"];
+if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
+if allof (header :contains "List-Id" "dev.example.com"){fileinto "Lists";}`)
+})
+
+test('list + from + subject', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Dev digest', from: 'news@example.com', list: 'dev.example.com', subject: 'Weekly' }],
+      actions: [
+        {
+          fileinto: ['Lists'],
+        },
+      ],
+    },
+  ]
+
+  expect(sieve(filters)).toBe(`require ["include", "environment", "variables", "relational", "comparator-i;ascii-numeric", "spamtest", "fileinto", "imap4flags"];
+if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
+if allof (header :contains "Subject" "Weekly", address :all :matches "From" "news@example.com", header :contains "List-Id" "dev.example.com"){fileinto "Lists";}`)
+})
+
+test('list in a multi-condition rule', () => {
+  const filters = [
+    {
+      conditions: [{ comment: 'Dev list', list: 'dev.example.com' }, 'news@example.com'],
+      actions: [
+        {
+          fileinto: ['Lists'],
+        },
+      ],
+    },
+  ]
+
+  expect(sieve(filters)).toBe(`require ["include", "environment", "variables", "relational", "comparator-i;ascii-numeric", "spamtest", "fileinto", "imap4flags"];
+if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
+if anyof (
+  allof (header :contains "List-Id" "dev.example.com"),
+  allof (address :all :matches "From" "news@example.com")
+) {
+  fileinto "Lists";
+}`)
+})
+
 test('allow naked email condition', () => {
   const filters = [
     {
