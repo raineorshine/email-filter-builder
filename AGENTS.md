@@ -1,6 +1,34 @@
 Operational knowledge for future agent sessions working on this project and automating the user's Gmail filters and labels. Gleaned from live sessions (2026-08); verify details that may have drifted before relying on them.
 
-**Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — gitignored, at the repo root of the main checkout; like `filters.js`, it does not appear in worktrees.
+**Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — gitignored, at the repo root of the main checkout; like `filters.js`, it does not appear in worktrees — but you may edit it from one, under the mutex below.
+
+## AGENTS.local.md (account-specific notes)
+
+Editing it from a worktree is expected, not off-limits — it holds everything the privacy rule keeps out of this repo. It lives at the main checkout root, never the worktree root:
+
+```bash
+MAIN="$(dirname "$(git rev-parse --git-common-dir)")"
+```
+
+**Always hold the mutex.** A dozen-plus worktrees are typically live at once (`git worktree list`), each possibly running its own agent session; an unlocked read-modify-write silently drops whatever another session wrote in between. `flock` is not installed on macOS, so use `mkdir`, which is atomic on every POSIX filesystem:
+
+```bash
+MAIN="$(dirname "$(git rev-parse --git-common-dir)")"
+LOCK="$MAIN/.git/AGENTS.local.md.lock"
+
+# Acquire; reclaim a lock older than 10 min as orphaned.
+until mkdir "$LOCK" 2>/dev/null; do
+  [ -n "$(find "$LOCK" -maxdepth 0 -mmin +10 2>/dev/null)" ] && rmdir "$LOCK" 2>/dev/null
+  sleep 1
+done
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
+# Read, modify and write "$MAIN/AGENTS.local.md" here — all inside the lock.
+```
+
+- **One Bash call.** Shell state does not persist between tool calls, so acquire, edit and release must be a single invocation or the `trap` fires early and frees the lock mid-edit.
+- **Re-read inside the lock.** Never write back content read before acquiring it.
+- The lock lives under `.git/`, which is shared by every worktree and never committed.
 
 ## Git
 
