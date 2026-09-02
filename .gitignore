@@ -5,3 +5,4 @@ AGENTS.local.md
 out
 .gmail-credentials.json
 .gmail-token.json
+.env

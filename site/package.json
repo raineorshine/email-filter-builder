@@ -1,0 +1,12 @@
+{
+  "name": "email-filter-builder-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Home page and privacy policy for the email-filter-builder OAuth consent screen.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

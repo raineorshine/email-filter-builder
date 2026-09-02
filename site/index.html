@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>email-filter-builder</title>
+    <style>
+      :root {
+        --bg: #fbfbfa;
+        --fg: #1b1b1a;
+        --muted: #63635e;
+        --rule: #e3e3df;
+        --accent: #2f5d50;
+        --code-bg: #f0f0ec;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16171a;
+          --fg: #e8e8e4;
+          --muted: #9a9a94;
+          --rule: #2c2e33;
+          --accent: #8fc7b3;
+          --code-bg: #22242a;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.65 ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 6rem;
+      }
+      h1 {
+        font-size: 2rem;
+        line-height: 1.2;
+        margin: 0 0 0.4rem;
+        letter-spacing: -0.02em;
+      }
+      .tagline {
+        color: var(--muted);
+        margin: 0 0 2.5rem;
+        font-size: 1.05rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.5rem 0 0.75rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      ul {
+        margin: 0 0 1rem;
+        padding-left: 1.2rem;
+      }
+      li {
+        margin-bottom: 0.4rem;
+      }
+      code {
+        background: var(--code-bg);
+        padding: 0.15em 0.4em;
+        border-radius: 4px;
+        font-size: 0.9em;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      pre {
+        background: var(--code-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+      pre code {
+        background: none;
+        padding: 0;
+      }
+      footer {
+        margin-top: 4rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--rule);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>email-filter-builder</h1>
+      <p class="tagline">Generate email filters from a declarative spec, and keep Gmail in sync with it.</p>
+
+      <p><strong>email-filter-builder</strong> is a free, open-source command-line tool. You describe your mail rules once, in a plain JavaScript file, and it produces filters for more than one mail provider from that single source: a <a href="https://www.rfc-editor.org/info/rfc5228">Sieve</a> script for ProtonMail, and filters for Gmail.</p>
+
+      <h2>What it does</h2>
+      <ul>
+        <li>Compiles one declarative spec into Sieve scripts and Gmail filters, so the two never drift apart.</li>
+        <li>Merges rules that share the same actions into as few filters as possible, staying well under Gmail's 1,000-filter cap.</li>
+        <li>Syncs Gmail directly through the Gmail API: it compares your spec against the filters already on the account and reconciles the difference.</li>
+      </ul>
+
+      <h2>Why the sync exists</h2>
+      <p>Gmail's filter import only skips entries that match an existing filter exactly. Re-importing an edited rule leaves the old filter live alongside the new one, and Gmail applies <em>every</em> matching filter. The sync avoids this by diffing: filters that already match are left untouched, ones that no longer belong are removed, and only genuinely new filters are created. Running it twice in a row makes no changes the second time.</p>
+
+      <h2>Running it</h2>
+      <pre><code>node bin.js filters.js          # write Sieve scripts and a Gmail import file
+node sync.js filters.js         # show what would change in Gmail
+node sync.js filters.js --apply # make those changes</code></pre>
+      <p>The sync previews its plan by default and writes nothing without <code>--apply</code>.</p>
+
+      <h2>Your data</h2>
+      <p>The tool runs on your own computer and talks only to Google. It reads and writes your Gmail filters and labels, and reads your email address to show which account it is about to modify. It does not read your messages. Nothing is sent anywhere else. See the <a href="/privacy">privacy policy</a> for the details.</p>
+
+      <h2>Source</h2>
+      <p>
+        The full source is public at
+        <a href="https://github.com/raineorshine/email-filter-builder">github.com/raineorshine/email-filter-builder</a>.
+      </p>
+
+      <footer>
+        <a href="/privacy">Privacy policy</a> &middot;
+        <a href="https://github.com/raineorshine/email-filter-builder">Source on GitHub</a>
+      </footer>
+    </main>
+  </body>
+</html>

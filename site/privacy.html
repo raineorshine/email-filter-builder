@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — email-filter-builder</title>
+    <style>
+      :root {
+        --bg: #fbfbfa;
+        --fg: #1b1b1a;
+        --muted: #63635e;
+        --rule: #e3e3df;
+        --accent: #2f5d50;
+        --code-bg: #f0f0ec;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16171a;
+          --fg: #e8e8e4;
+          --muted: #9a9a94;
+          --rule: #2c2e33;
+          --accent: #8fc7b3;
+          --code-bg: #22242a;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.65 ui-sans-serif, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 6rem;
+      }
+      h1 {
+        font-size: 1.9rem;
+        line-height: 1.2;
+        margin: 0 0 0.3rem;
+        letter-spacing: -0.02em;
+      }
+      .updated {
+        color: var(--muted);
+        margin: 0 0 2.5rem;
+        font-size: 0.95rem;
+      }
+      h2 {
+        font-size: 1.05rem;
+        margin: 2.25rem 0 0.6rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      ul {
+        margin: 0 0 1rem;
+        padding-left: 1.2rem;
+      }
+      li {
+        margin-bottom: 0.45rem;
+      }
+      code {
+        background: var(--code-bg);
+        padding: 0.15em 0.4em;
+        border-radius: 4px;
+        font-size: 0.9em;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .callout {
+        border-left: 3px solid var(--accent);
+        padding: 0.1rem 0 0.1rem 1rem;
+        margin: 0 0 1rem;
+      }
+      footer {
+        margin-top: 4rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--rule);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">For the <strong>email-filter-builder</strong> application. Last updated 2 September 2026.</p>
+
+      <p>email-filter-builder is a free, open-source command-line tool that generates email filters from a declarative specification and synchronizes them with Gmail. It is run by the person who installs it, on their own computer, against their own mailbox.</p>
+
+      <div class="callout">
+        <p><strong>There is no server.</strong> This application has no backend, no database, and no hosted component that receives your data. It runs locally and communicates only with Google's APIs, using your own credentials.</p>
+      </div>
+
+      <h2>What the application accesses</h2>
+      <p>When you authorize it, the application requests these Google account permissions and no others:</p>
+      <ul>
+        <li><code>gmail.settings.basic</code> — to read, create, and delete the mail filters on your Gmail account. This is the core function: making your live filters match your specification.</li>
+        <li><code>gmail.labels</code> — to read your Gmail labels, and create a label when your specification files mail into one that does not exist yet. A filter must reference a label by its ID, so the labels have to be read to be used.</li>
+        <li><code>userinfo.email</code> — to read the email address of the signed-in account, so the tool can display which account it is about to modify before making changes.</li>
+      </ul>
+
+      <h2>What it does not access</h2>
+      <p>The application does not read, store, or transmit the contents of your email. It does not access message bodies, subjects, attachments, drafts, contacts, or your calendar. The permissions above do not grant access to your messages, and the application requests nothing further.</p>
+
+      <h2>How your information is used</h2>
+      <p>Information obtained from Google is used solely to carry out the action you requested at the moment you request it: listing your existing filters and labels, and creating or deleting filters so that they match the specification you wrote. It is used for no other purpose.</p>
+
+      <h2>Storage and retention</h2>
+      <ul>
+        <li>Your filters and labels are read into memory during a run and discarded when the process exits. They are never written to disk by this application.</li>
+        <li>An OAuth access token and refresh token are cached in a file on your own computer so that repeated runs do not require signing in every time. This file never leaves your machine.</li>
+        <li>No information is retained anywhere else, because there is nowhere else — see above.</li>
+      </ul>
+
+      <h2>Sharing</h2>
+      <p>Nothing is shared. The application transmits no data to the developer or to any third party. It contains no analytics, no telemetry, no advertising, and no error reporting. Your data is never sold, and there is no mechanism by which it could be transferred.</p>
+
+      <h2>Limited Use disclosure</h2>
+      <p>
+        This application's use and transfer of information received from Google APIs adheres to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.
+      </p>
+
+      <h2>Revoking access</h2>
+      <p>
+        You can withdraw the application's access at any time at
+        <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Deleting the cached token file on your computer also ends its ability to act on your account. Revoking access does not alter filters that have already been created; those remain yours to edit or delete in Gmail.
+      </p>
+
+      <h2>Children</h2>
+      <p>This is a developer tool and is not directed to children under 13.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>If this policy changes, the revised version will be posted at this address with an updated date. Material changes to what the application accesses would also require you to re-authorize it.</p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or the application can be sent to {{CONTACT}}. The source code is public and can be inspected at
+        <a href="https://github.com/raineorshine/email-filter-builder">github.com/raineorshine/email-filter-builder</a>.
+      </p>
+
+      <footer><a href="/">&larr; email-filter-builder</a></footer>
+    </main>
+  </body>
+</html>
