@@ -89,7 +89,7 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
 
 - Target account and current filter/label specifics: see **AGENTS.local.md**. Verify the account in the browser tab title before acting.
 - Gmail caps filters at 1,000 per account; check the current count before large imports.
-- Gmail applies **all** matching filters — no first-match ordering like ProtonMail sieve. Overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views).
+- Gmail applies **all** matching filters, and they are unordered — overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views). ProtonMail also applies all matching filters, but they *are* ordered and conflicting actions resolve differently — see **ProtonMail → Filter order**.
 - A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs** — filters can only be managed through the Gmail settings UI.
   - `search_threads` label queries take label **IDs** (e.g. `label:Label_42`), not display names; get IDs from `list_labels`.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
@@ -120,3 +120,92 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
 - Old-school HTML in the top document (no iframes). Filter rows are `tr` elements containing "Do this:" plus an edit link; edit/delete controls are `span.sA[role="link"]`. The settings page preloads other tabs' content — label-management rows are also in the DOM, so always constrain row selectors with "Do this:".
 - Element refs go stale after any click that re-renders the list. Re-find before each click, one mutation per call, and verify state after — JS DOM reads are the most reliable verification.
 - Coordinate clicks are unreliable (viewport vs screenshot scale mismatch). Use refs from find/read_page, or dispatch events from JS.
+
+# ProtonMail
+
+The source side of the migration. Proton runs the generated `out/*.sieve` scripts plus any
+hand-made filters; account specifics live in **AGENTS.local.md**.
+
+## Filter order — last conflicting action wins
+
+Proton applies **all** matching filters, in the listed order, and per Proton's own docs: "When
+multiple filters apply to a message, all non-conflicting actions will be applied. If there are
+actions that conflict, the last action will be applied to the message."
+([How to use email filters](https://proton.me/support/email-inbox-filters))
+
+Two filters that both `fileinto` a folder **conflict**; the message lands in the *later* filter's
+folder. Labels and stars are non-conflicting and accumulate from every match.
+
+This has a sharp consequence for this project:
+
+- **A catch-all "move to Archive" filter must be ordered *before* the generated sieve scripts.**
+  Placed after them it silently overrides every `trash` rule the builder emits — junk that should
+  be trashed is archived instead, with no error anywhere. Same for any hand-made folder-moving
+  filter that overlaps the generated rules.
+- The same hazard exists *within* a generated script: a later `fileinto "archive"` block beats an
+  earlier `fileinto "trash"` block for any message matching both. Today's entries overlap on sender
+  globs but are kept disjoint by their subject conditions — re-check after editing `filters.js` if
+  a sender appears in both a trash entry and an archive entry.
+- The generated scripts contain no `stop`, so nothing short-circuits; every later filter still runs.
+
+## What the Proton UI filter builder can express
+
+Worth knowing before assuming a rule has to live in `filters.js` — the builder only supports `from`
+and `subject` and only emits `fileinto`, so anything below has to be a hand-made filter:
+
+- **Conditions:** the subject / the sender / the recipient / the attachment. Operators: contains,
+  is exactly, begins with, ends with, matches, plus a negation of each.
+- **Actions:** label as (any number), move to (exactly one folder), mark as read and/or starred,
+  send auto-reply.
+- Conditions are combined with ALL or ANY. One condition row accepts **multiple values**, OR'd
+  inside the comparator — so with a negated comparator a single row means "matches none of these",
+  which is the compact way to write a multi-address exclusion.
+- Proton prepends a spam guard to every UI-built filter, so Spam is never touched.
+- **Filters can be applied retroactively**, contrary to the usual assumption: a checkbox at filter
+  creation, and "Apply to existing messages" in the row's ⋮ menu afterwards.
+- **"Edit Sieve" works on UI-built filters** and is the only way to read the sieve they generate.
+  Use it to verify a filter before trusting it.
+
+## Forwarding interacts with none of this
+
+- Auto-forwarding is envelope-based: it forwards everything delivered to the address regardless of
+  headers, and runs independently of filters. Archiving or trashing a message in Proton does **not**
+  stop it being forwarded — which is what makes the archive-everything strategy safe.
+- Forwarding is configured **per address**. An address with no rule forwards nothing, so audit the
+  full address list before adding any catch-all archive rule, or mail to an unforwarded address is
+  archived having never reached the destination.
+- Enabling a forward to a destination without end-to-end encryption **disables E2EE for the source
+  address** (zero-access encryption remains). Proton warns at the confirmation step. Get the user's
+  sign-off — it is a security change, not a mail-routing one.
+- Creating a rule requires the account password, then the *recipient* clicks a confirmation link.
+  An agent can do neither: hand both steps to the user.
+
+## Automating the Proton settings UI (hard-won)
+
+- **Modals do not open from a `computer` ref click.** Dispatch
+  `pointerdown/mousedown/pointerup/mouseup/click` MouseEvents from `javascript_tool` instead.
+  Inside an open modal the reverse holds: ref clicks work and JS dispatch on dropdown options
+  silently does nothing. Native `.click()` works on toggle labels but not on dropdown triggers.
+- **Dropdown options often need a second click** — the first opens/re-opens the list without
+  selecting. Always read the control back to confirm the value took.
+- **Refs go stale after any scroll or re-render.** A stale ref opened the wrong filter's Edit dialog
+  twice in one session. Re-run `find` immediately before each click and never scroll in between;
+  verify which record a modal actually opened before touching it.
+- Several closed `.modal-two` nodes linger in the DOM. Select the live one with
+  `[...document.querySelectorAll('.modal-two')].filter(d => !d.classList.contains('modal-two--out')).pop()`.
+- Screenshot and viewport dimensions frequently disagree, so coordinate clicks land off-target.
+  Use refs or JS, same as in Gmail and Shortwave.
+- `javascript_tool` and `computer` can both wedge with "Cannot access a chrome-extension:// URL of
+  different extension" while `find`/`read_page` keep working — here with no native dialog pending,
+  unlike the Gmail case below. Recovery is the same: close the tab and open a fresh one.
+- **Reordering filters** has no menu item — drag handles only — but dnd-kit's keyboard sensor works:
+  focus `td[aria-roledescription="draggable"]`, Space to lift, ArrowUp/ArrowDown, Space to drop.
+  Three gotchas: the drag attributes attach only *after* a real scroll interaction on the page;
+  moves must be chunked (`repeat: 10` with a ~1s wait between — one `repeat: 100` call does
+  nothing); and the drag overlay leaves a phantom duplicate row that captures focus, so reload
+  between drags. Reordering persists server-side. Moving a filter from the end of a ~200-row list
+  to the top took about twenty chunks.
+- Row ⋮ menu: Apply to existing messages / Edit Sieve / Delete. If it will not open, its items are
+  already in the DOM — click by aria-label (`Edit Sieve filter "<name>"`).
+- Deleting or disabling a superseded filter: the row toggle is reversible and is the safer choice
+  over Delete when a rule may need backing out.
