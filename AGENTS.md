@@ -5,6 +5,7 @@ Operational knowledge for future agent sessions working on this project and auto
 ## Git
 
 - Before pushing to a PR branch, check whether the PR is already merged (`gh pr view <n> --json state`). Pushes to a merged PR's branch land nowhere; cherry-pick the commits onto a fresh branch off master instead.
+- Many worktrees run against this repo at once, and AGENTS.md is the file they all want to edit. A task started with `spawn_task` gets its own worktree and branch, so editing the same file in the spawning session too guarantees a cross-branch conflict — and `ListAgents` gives no reliable way to tell which peer session owns a given spawned task. Hand a file to the task or keep it, not both.
 
 ## Project
 
@@ -67,6 +68,7 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
   - `search_threads` label queries take label **IDs** (e.g. `label:Label_42`), not display names; get IDs from `list_labels`.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
   - `search_threads` returns a `resultCountEstimate` that is a fixed placeholder (`201` for every query, empty or not). It is not a count — never report or branch on it.
+  - Before concluding a label is empty, **verify the query itself** by running the same form against a label known to hold mail. A malformed query returns exactly what an empty label returns, and mistaking one for the other reads as data loss — this is the check that distinguishes a broken `label:` syntax from a genuinely empty label.
   - Deleting a label unlabels its messages; no mail is removed. Whether `delete_label` on a parent cascades to `Parent/Child` labels is **untested** — delete children explicitly first so the question never arises.
   - Label counts are **not** evidence a label is empty, and the fault is **Gmail's, not the connector's** — Gmail's own Settings → Labels page prints the same figures, zeros included. `messagesTotal` and `threadsTotal` read a stored per-label counter and fail as a pair: it resets to 0 after an `update_label` rename (rebuilding to correct values within minutes), and it can sit stuck at 0 indefinitely on labels holding thousands of threads. The unread counters are stored separately and stayed accurate throughout, so `messagesTotal: 0` beside a nonzero `messagesUnread` — arithmetically impossible — is the signature of the fault. Prove emptiness by querying (`search_threads` with `in:anywhere`), never by reading the count; this matters most right before `delete_label`.
 - Three label-like namespaces can share a name (e.g. "Purchases"): Gmail **user labels** (the only kind this project's filters apply), Gmail **system categories** (`#category/...`, ML-assigned only — filters cannot target them beyond the five inbox tabs), and **Shortwave built-in labels** (cart-icon entries in Shortwave's picker; Shortwave-side only, invisible to Gmail, not removable from the picker).
@@ -113,3 +115,9 @@ Settings → Labels lists every label with its conversation count in a single pa
 
 - `browser_batch` rejects fully-qualified `mcp__claude-in-chrome__*` tool names in its `actions` list; the batch aborts on the first item. Issue those calls individually.
 - Coordinate clicks land on the wrong element in both Gmail and Shortwave (viewport vs screenshot scale mismatch) — a `hover` may land correctly while a `left_click` at the same point does not. Always click by ref from `find`/`read_page`.
+- `javascript_tool` aborts at a 45s `Runtime.evaluate` timeout and discards everything the call had already done, even work that succeeded. Give any in-page loop its own ~25-30s deadline, return where it got to, and make it resumable by reading current state on entry — that is what makes long pagination tractable.
+- Read status text from the **visible** element only (filter on `offsetParent`). These SPAs keep stale hidden copies that never update; a selector matching one returns a frozen value, which makes working clicks look inert and sends you debugging the wrong layer.
+
+# Shell
+
+- zsh, not bash. Interpolating a variable into a bracketed pattern inside double quotes (`grep "[^']*$name" filters.js`) makes zsh attempt arithmetic expansion and abort the line — it prints a `bad math expression` error and every later command in the pipeline silently reports nothing. Use `grep -F "$name"`, or single-quote the pattern. Worth knowing because sweeping `filters.js` for label names is a routine step here, and the failure looks like "no matches".
