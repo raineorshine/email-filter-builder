@@ -76,9 +76,9 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 Near-identical names across namespaces are easy to misread in the "Label as" picker.
 
-## Browser automation (all three web apps)
+## Browser automation
 
-Lessons that held in the Gmail, Shortwave and Proton SPAs alike; each app's section below adds only its own quirks.
+Lessons that held across every web app driven from these sessions — the Gmail, Shortwave and Proton SPAs, and the Google Cloud console; each app's section below adds only its own quirks.
 
 - **Click by ref, not by coordinate.** The screenshot frame and the page viewport report different sizes (1028×1176 vs 919×1051 in one session), so coordinate clicks land ~15% off. Use refs from `find`/`read_page`, or dispatch events from JS.
 - **Refs go stale** after any click, scroll, or re-render. Re-run `find` immediately before each click, one mutation per call, and verify state afterwards — JS DOM reads are the most reliable verification. A stale ref opened the wrong Proton filter's Edit dialog twice in one session.
@@ -94,9 +94,23 @@ Lessons that held in the Gmail, Shortwave and Proton SPAs alike; each app's sect
 - Gmail caps filters at 1,000 per account; check the current count before large changes.
 - Gmail applies **all** matching filters, and they are unordered — overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views).
 - Change filters with `node sync.js` (`users.settings.filters` over OAuth), not the settings UI; the UI notes below are a fallback.
+- The diff is genuinely idempotent: Gmail stores `criteria.query` verbatim and hands it back unchanged, so a dry run immediately after an apply reports zero changes. If a re-run ever shows churn on filters nobody touched, suspect the renderer, not Gmail.
+- **Hand-made filters diff as different even when they mean the same thing.** A rule built in the Gmail UI populates the API's `from`/`to`/`subject` criteria fields; `sync.js` puts everything in `query`. `from:alice@example.com` and `query:"from:(alice@example.com)"` match the same mail but are not equal, so migrating a hand-made rule into `filters.js` always plans as a delete plus a create. That is correct and expected — it is not the renderer misfiring.
 - A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs**.
   - `search_threads` label queries have worked with label **IDs** (`label:Label_42`, from `list_labels`) in some sessions and with the display name (`label:"Name"`) in others, the other form returning nothing. Before concluding a label is empty, run the same query form against a label known to hold mail — a malformed query returns exactly what an empty label returns.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
+
+### OAuth app (Google Cloud console)
+
+`sync.js` needs a Google Cloud project with the Gmail API enabled and a Desktop OAuth client. Project and client specifics are in **AGENTS.local.md**. What is worth knowing before touching it:
+
+- **Three scopes, and the obvious one is not enough.** `gmail.settings.basic` covers the filter endpoints but _not_ `users.labels`, which the action mapping needs to turn a `fileinto` destination into a label id (and to create a missing label), so `gmail.labels` is required too. `userinfo.email` is there only so the sync can print which account it is about to write to.
+- **Publishing status governs token lifetime.** An External app left in _Testing_ has its refresh token expired by Google every 7 days, so nearly every run reauthorizes. _In production_ makes it durable. Publishing requires a reachable home page and privacy policy URL plus the domain under Authorized domains — that is the only reason `site/` exists.
+- **Publishing does not make the app verified.** The "Google hasn't verified this app → Advanced → Go to …" interstitial and the 100-user cap persist, because Gmail's filter scopes are restricted; clearing those needs a full verification review, which is not worth it for a single-user tool. Expect the interstitial on every fresh authorization.
+- **Creating a project may demand a billing account** — the console refuses without one even though Gmail API usage is free. Attaching one is the user's decision, not an agent's.
+- **The client secret is shown once, at creation.** Agent tooling is blocked from scripting anything that handles it, so the user downloads the JSON and places `.gmail-credentials.json` themselves. Do not close the creation dialog before that file exists, or the client has to be recreated.
+- **Do not borrow an unrelated existing project** just because its consent screen is already configured. It pollutes someone else's app with a client and an enabled API, and the consent screen users see carries that project's branding.
+- **The console needs dispatched MouseEvents.** Ref clicks silently no-op on its buttons (Enable, Create, Save) far more often than they work. Its dropdowns are `cfc-select` custom elements with `[role="option"]` lists, not `<select>`, so `form_input` does not drive them — click the select, then dispatch on the option. See **Browser automation**.
 
 ### Settings UI (fallback — prefer `sync.js`)
 

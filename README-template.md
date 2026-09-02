@@ -63,7 +63,7 @@ node sync.js filters.js --apply  # applies them
 
 - **Dry run by default.** Nothing is written without `--apply`, and `--apply` prompts before deleting unless `--yes` is passed. `--verbose` prints full queries instead of truncating them.
 - **The spec is the source of truth.** Any live filter the spec does not describe is deleted, so hand-made filters must be migrated into `filters.js` first or they will be removed.
-- **An unpublished OAuth app expires its refresh token every 7 days.** The sync detects the dead token and reauthorizes on its own, so this costs a browser click-through rather than a broken run.
+- **An unpublished OAuth app expires its refresh token every 7 days.** The sync detects the dead token and reauthorizes on its own, so this costs a browser click-through rather than a broken run. Publishing the app to production removes the expiry, but Google requires a reachable home page and privacy policy URL first — `site/` is the minimal pair of pages that satisfies it.
 - **Deletes run before creates.** An interrupted sync then leaves filters missing rather than duplicated, and re-running converges — Gmail applies _every_ matching filter, so duplicates would both stay live.
 - The Gmail API has no filter update, so an edited rule is a delete plus a create.
 - Labels the spec files into are created if they do not exist.
