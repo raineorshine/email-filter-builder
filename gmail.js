@@ -34,12 +34,13 @@ const From = from =>
 /** Converts a sieve :contains subject into a Gmail subject expression. Multi-word subjects are quoted so Gmail matches the phrase rather than the words in any order. */
 const Subject = subject => (/\s/.test(subject) ? `"${subject}"` : subject)
 
-/** Renders a single condition as a Gmail search term. */
+/** Renders a single condition as a Gmail search term. Criteria are ANDed, and a term with more than one is parenthesized so it survives OR-merging with other terms. */
 const Term = condition => {
-  const { from, subject } = typeof condition === 'string' ? { from: condition } : condition
+  const { from, list, subject } = typeof condition === 'string' ? { from: condition } : condition
   const fromQuery = from && From(from)
   const subjectQuery = subject && Subject(subject)
-  return fromQuery && subjectQuery ? `(from:(${fromQuery}) subject:(${subjectQuery}))` : fromQuery ? `from:(${fromQuery})` : subjectQuery ? `subject:(${subjectQuery})` : null
+  const parts = [fromQuery && `from:(${fromQuery})`, subjectQuery && `subject:(${subjectQuery})`, list && `list:(${list})`].filter(x => x)
+  return parts.length > 1 ? `(${parts.join(' ')})` : parts[0] || null
 }
 
 /** Greedily packs terms into OR queries of at most maxQueryLength characters. A single term longer than the limit still gets its own query, since a term cannot be split. */
@@ -61,8 +62,8 @@ const chunkTerms = (terms, maxQueryLength) => {
 /** Renders a single Gmail filter entry from a merged query and at most one label. */
 const Entry = ({ archive, label, query, trash }) => ['  <entry>', "    <category term='filter'></category>", '    <title>Mail Filter</title>', '    <content></content>', Property('hasTheWord', query), label && Property('label', label), archive && Property('shouldArchive', 'true'), trash && Property('shouldTrash', 'true'), Property('sizeOperator', 's_sl'), Property('sizeUnit', 's_smb'), '  </entry>'].filter(x => x).join('\n')
 
-/** Expands one filter into Gmail entries: conditions are OR-merged into as few queries as possible, then one entry is emitted per query per label since Gmail applies at most one label per filter. */
-const Entries = ({ actions, conditions }, maxQueryLength) => {
+/** Expands one filter into Gmail filter specs: conditions are OR-merged into as few queries as possible, then one spec is emitted per query per label since Gmail applies at most one label per filter. Shared by the XML renderer and the API sync so the two cannot drift on merging, chunking, or action mapping. */
+const Specs = ({ actions, conditions }, maxQueryLength = DEFAULT_MAX_QUERY_LENGTH) => {
   const destinations = actions.flatMap(action => action.fileinto)
   const archive = destinations.some(isArchive)
   const trash = destinations.some(isTrash)
@@ -71,8 +72,11 @@ const Entries = ({ actions, conditions }, maxQueryLength) => {
   const terms = conditions.map(Term).filter(x => x)
   const queries = chunkTerms(terms, maxQueryLength)
 
-  return queries.flatMap(query => (labels.length > 0 ? labels : [null]).map(label => Entry({ archive, label, query, trash })))
+  return queries.flatMap(query => (labels.length > 0 ? labels : [null]).map(label => ({ archive, label, query, trash })))
 }
+
+/** Expands one filter into Gmail XML entries. */
+const Entries = (filter, maxQueryLength) => Specs(filter, maxQueryLength).map(Entry)
 
 /** Generates a Gmail filter import file (Gmail → Settings → Filters and Blocked Addresses → Import filters). */
 const Gmail = (filters, { maxQueryLength = DEFAULT_MAX_QUERY_LENGTH, updated = new Date().toISOString().replace(/\.\d+Z$/, 'Z') } = {}) => `<?xml version='1.0' encoding='UTF-8'?>
@@ -85,3 +89,5 @@ ${filters.flatMap(filter => Entries(filter, maxQueryLength)).join('\n')}
 `
 
 module.exports = Gmail
+module.exports.DEFAULT_MAX_QUERY_LENGTH = DEFAULT_MAX_QUERY_LENGTH
+module.exports.Specs = Specs

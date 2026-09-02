@@ -39,6 +39,8 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 - `email-filter-builder` generates email filters from `filters.js` (gitignored, personal, lives at the repo root of the main checkout).
 - `node bin.js filters.js` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
+- `node sync.js filters.js` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md); `.gmail-credentials.json` and `.gmail-token.json` are gitignored.
+- `gmail.js` exports `Specs`, the shared conditions-to-filters expansion (OR-merging, 600-char chunking, one label per filter). Both the XML renderer and `sync.js` go through it, so the two formats cannot drift. Change merging semantics there, not in either consumer.
 - Mapping rules are documented in README.md. Key invariants: conditions sharing the same actions are OR-merged into `hasTheWord` queries chunked at 600 chars (`maxQueryLength` option); `archive` → shouldArchive; `trash` → shouldTrash; one label per Gmail filter (multi-label entries expand); sieve globs become Gmail token search terms — dangling fragments ≤3 chars are dropped, longer ones kept.
 - Before importing after renderer changes, audit the generated queries against the real filters.js. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 
@@ -91,7 +93,7 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
 - Target account and current filter/label specifics: see **AGENTS.local.md**. Verify the account in the browser tab title before acting.
 - Gmail caps filters at 1,000 per account; check the current count before large imports.
 - Gmail applies **all** matching filters, and they are unordered — overlapping rules stack their actions (trash + label both apply; trashed mail is hidden from label views). ProtonMail also applies all matching filters, but they _are_ ordered and conflicting actions resolve differently — see **ProtonMail → Filter order**.
-- A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs** — filters can only be managed through the Gmail settings UI.
+- A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs** — for filters, use `node sync.js` (this repo, `users.settings.filters` over OAuth) rather than the settings UI.
   - `search_threads` label queries take label **IDs** (e.g. `label:Label_42`), not display names; get IDs from `list_labels`.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
   - **It drops credentials in the repo root.** First use writes `.gmail-credentials.json` and `.gmail-token.json` (live OAuth access + refresh tokens) next to `package.json`. Both are gitignored — keep it that way, and never `git add -A` blind in this public repo.
@@ -110,7 +112,7 @@ Keep all deterministic sender/subject→label routing in `filters.js` → Gmail 
 
 **Filter EDIT — automatable:** row "edit" link → criteria overlay → Continue → actions screen. The label picker is a div listbox (`role=listbox`/`role=option`), not a `<select>`: open it by clicking the listbox ref, then select by dispatching `mouseover/mousedown/mouseup/click` MouseEvents on the option with the **exact** target text (beware near-identical names), verify the listbox text via DOM read, then "Update filter".
 
-**Filter DELETE — not safely automatable.** The per-row delete links and the bulk Delete button call native `window.confirm()`:
+**Filter DELETE — not safely automatable _in the browser_.** Use `node sync.js --apply` instead: the API deletes filters outright, with no dialog. The rest of this subsection applies only if a session is forced into the settings UI. The per-row delete links and the bulk Delete button call native `window.confirm()`:
 
 - No automation path can click a native dialog. While one is pending, computer-tool actions (screenshot/click) fail with "Cannot access a chrome-extension:// URL of different extension", while DOM tools (read_page/find/get_page_text/javascript) keep working. Recover by closing the wedged tab and creating a fresh one.
 - Overriding `window.confirm` from javascript_tool does **not** work — the tool runs in an isolated world; the page still sees the native function.
