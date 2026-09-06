@@ -17,6 +17,24 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 - After renderer changes, audit the planned queries against the real `filters.js` before applying — `node sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 - `README.md` is generated from `README-template.md` by `npm run build` — edit the template, never the output.
 
+### Bulk-editing filters.js from a script
+
+Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Four things
+bite:
+
+- **Dedupe by glob match, not string equality.** An existing `*@domain.com` already covers an
+  incoming `user@domain.com`, and adding it again is dead weight. A condition carrying a `subject`
+  is _not_ general coverage of its sender, so it must not count as a match.
+- **Prettier collapses short `conditions` arrays onto one line**, so the file holds both the
+  multi-line and the single-line form. A line-based inserter has to handle each, or it will splice
+  entries in above the `conditions:` key and produce a syntax error.
+- **Splice bottom-up, computing each insertion point immediately before use.** Indices captured for
+  every group up front are invalidated by the first splice — including one that rewrites a collapsed
+  array in place.
+- **Verify by loading the result, not by reading it**: `require()` the file to catch syntax errors,
+  and compare total condition counts before and after against the number you meant to add. Then
+  re-run the same coverage check that found the new entries — it should report nothing new.
+
 ### Files outside git
 
 Personal files live at the root of the **main checkout**, gitignored, so they are absent from worktrees. Reach them by absolute path:
@@ -84,6 +102,13 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - **Refs go stale** after any click, scroll, or re-render. Re-run `find` immediately before each click, one mutation per call, and verify state afterwards — JS DOM reads are the most reliable verification. A stale ref opened the wrong Proton filter's Edit dialog twice in one session.
 - **When a ref click does nothing, dispatch MouseEvents** (`mouseover/mousedown/mouseup/click`; Proton modals also need `pointerdown/pointerup`) from `javascript_tool`. Which of the two works is app- and control-specific; the per-app notes say which.
 - **"Cannot access a chrome-extension:// URL of different extension"** wedges `computer` (and in Proton also `javascript_tool`) while `find`/`read_page`/`get_page_text` keep working. In Gmail it means a native dialog is pending; in Proton it happens with no dialog at all. Recovery is the same: close the tab and open a fresh one.
+- **Getting bulk data out of a page needs chunking and a checksum.** `javascript_tool` truncates a
+  long result mid-value, and the extension replaces anything that looks like cookie or base64 data
+  with a redaction marker — so returning a raw API response yields nothing usable. Stash the payload
+  on `window`, return only the derived fields you need, and emit the bulk of it in explicit slices.
+  The clipboard is not an escape hatch — in a driven tab `navigator.clipboard.writeText` throws
+  because the document is not focused. Hash the payload in the page (`crypto.subtle.digest`) and
+  again on the written file; that is what proves the transcribed copy is complete and in order.
 - **Native `window.confirm()` dialogs cannot be clicked** by any automation path, and overriding `window.confirm` from `javascript_tool` does not work — the tool runs in an isolated world; the page still sees the native function.
 
 ## Gmail
@@ -96,6 +121,22 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - Change filters with `node sync.js` (`users.settings.filters` over OAuth), not the settings UI; the UI notes below are a fallback.
 - The diff is genuinely idempotent: Gmail stores `criteria.query` verbatim and hands it back unchanged, so a dry run immediately after an apply reports zero changes. If a re-run ever shows churn on filters nobody touched, suspect the renderer, not Gmail.
 - **Hand-made filters diff as different even when they mean the same thing.** A rule built in the Gmail UI populates the API's `from`/`to`/`subject` criteria fields; `sync.js` puts everything in `query`. `from:alice@example.com` and `query:"from:(alice@example.com)"` match the same mail but are not equal, so migrating a hand-made rule into `filters.js` always plans as a delete plus a create. That is correct and expected — it is not the renderer misfiring.
+- **A large delete count in a sync plan is usually re-chunking, not lost coverage.** Adding senders to
+  a label group re-splits that group's 600-char query chunks, so the old chunks are deleted and
+  replacements created. Do not take this on faith — check that every `from:`/`subject:` term in each
+  deleted query reappears in a created query _under the same label_. A term that does not is either a
+  genuine removal or a label move, and is worth resolving before applying.
+- **A plan lists only the deletes and creates, never the filters it leaves alone.** So auditing the
+  plan — for the bare-TLD hazard in **What the code does**, or anything else — says nothing about
+  the untouched majority still live on the account. Audit the rendered spec, not the plan, when the
+  question is about all of them.
+- **Dry-run the previous spec before applying an edit.** The account is not necessarily in sync to
+  begin with, and unapplied drift rides along in whatever you apply. Diffing the old spec against
+  live first is what separates your change's effect from what was already pending.
+- **`sync.js` creates any label the spec names**, so a typo or a foreign label name imported from
+  another provider silently becomes a new Gmail label. Read the dry run's `Labels to create` line
+  before applying, and confirm an unfamiliar name with the user — label vocabularies do not map 1:1
+  across providers.
 - A Gmail MCP server is connected (list_labels, delete_label, update_label, label/unlabel thread/message, search_threads, drafts, etc.). It exposes **no filter APIs**.
   - `search_threads` label queries have worked with label **IDs** (`label:Label_42`, from `list_labels`) in some sessions and with the display name (`label:"Name"`) in others, the other form returning nothing. Before concluding a label is empty, run the same query form against a label known to hold mail — a malformed query returns exactly what an empty label returns.
   - `delete_label` is the clean way to remove a label; confirm it is empty first with `search_threads` (`in:anywhere`). The Gmail sidebar may keep rendering a deleted label until the page reloads.
@@ -184,7 +225,31 @@ Worth knowing before assuming a rule has to live in `filters.js` — this repo's
 - Conditions are combined with ALL or ANY. One condition row accepts **multiple values**, OR'd inside the comparator — so with a negated comparator a single row means "matches none of these", which is the compact way to write a multi-address exclusion.
 - Proton prepends a spam guard to every UI-built filter, so Spam is never touched.
 - **Filters can be applied retroactively**, contrary to the usual assumption: a checkbox at filter creation, and "Apply to existing messages" in the row's ⋮ menu afterwards.
-- **"Edit Sieve" works on UI-built filters** and is the only way to read the sieve they generate. Use it to verify a filter before trusting it.
+- **"Edit Sieve" works on UI-built filters** and is how to read the sieve one generates. Use it to verify a single filter before trusting it — but to read many, use the API below rather than opening each row.
+
+### Reading every filter at once, over the API
+
+Opening rows one at a time does not scale past a handful, and the row name is only a naming
+convention — the sieve is what actually runs. Fetch the lot from page context on any logged-in
+Proton tab:
+
+```js
+const uid = JSON.parse(localStorage.getItem('ps-0')).UID
+await fetch('/api/mail/v4/filters', {
+  credentials: 'include',
+  headers: { 'x-pm-uid': uid, 'x-pm-appversion': 'web-account@<version from the sidebar footer>' },
+})
+```
+
+- Auth is the `AUTH-*` cookie (HttpOnly, so `credentials: 'include'` does the work) plus the `x-pm-uid`
+  header, whose value is in `localStorage['ps-0']`. Nothing needs the password.
+- Each filter returns `Sieve` (the source) and `Tree` (Proton's parsed AST). Parsing `Sieve` is
+  straightforward once the boilerplate — the `require` lines, the generated spam guard, and the
+  `/** @type … @comparator … */` annotation — is stripped; what remains is one `if allof/anyof (…) { … }`.
+- The generated `sieve-builder-*` scripts come back in the same list and dwarf everything else.
+  Filter them out by name before parsing.
+- Parse rather than trust: assert that every filter matched your grammar and report the ones that did
+  not, instead of silently skipping them.
 
 ### Forwarding interacts with none of this
 
