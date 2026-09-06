@@ -9,12 +9,13 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 ### What the code does
 
 - `email-filter-builder` generates email filters from `filters.js` (gitignored, personal — see **Files outside git**).
-- `node bin.js filters.js` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
-- `node sync.js filters.js` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write, `--yes` to skip the delete prompt, `--verbose` to print full queries. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md).
-- `gmail.js` exports `Specs`, the shared conditions-to-filters expansion (OR-merging, 600-char chunking, one label per filter). Both the XML renderer and `sync.js` go through it, so the two formats cannot drift. Change merging semantics there, not in either consumer.
+- Source lives in `src/`: the library modules, the two CLIs, and their colocated `*.test.js`. The root keeps project tooling and fixtures — `build.js` (README generation) and `filters.sample.js`.
+- `node src/bin.js filters.js` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
+- `node src/sync.js filters.js` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write, `--yes` to skip the delete prompt, `--verbose` to print full queries. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md).
+- `src/gmail.js` exports `Specs`, the shared conditions-to-filters expansion (OR-merging, 600-char chunking, one label per filter). Both the XML renderer and `sync.js` go through it, so the two formats cannot drift. Change merging semantics there, not in either consumer.
 - `site/` is the small public web page the Gmail OAuth consent screen links to (home page plus privacy policy), deployed separately from the CLI. It exists because Google will not let an app leave Testing status without a reachable home page and privacy policy URL. The contact address is injected from `CONTACT_EMAIL` (a gitignored `.env` locally, a service variable in production) rather than committed, since this repo is public — without it the contact falls back to the GitHub issue tracker. Hosting specifics are in AGENTS.local.md.
 - Mapping rules are documented in README.md (Gmail → Mapping). Key invariants: conditions sharing the same actions are OR-merged into `hasTheWord` queries chunked at 600 chars (`maxQueryLength` option); `archive` → skip the inbox (`shouldArchive` in XML, `removeLabelIds: [INBOX]` over the API); `trash` → delete (`shouldTrash` / `addLabelIds: [TRASH]`); one label per Gmail filter (multi-label entries expand); sieve globs become Gmail token search terms — dangling fragments ≤3 chars are dropped, longer ones kept.
-- After renderer changes, audit the planned queries against the real `filters.js` before applying — `node sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
+- After renderer changes, audit the planned queries against the real `filters.js` before applying — `node src/sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 - `README.md` is generated from `README-template.md` by `npm run build` — edit the template, never the output.
 
 ### Bulk-editing filters.js from a script
@@ -43,7 +44,7 @@ Personal files live at the root of the **main checkout**, gitignored, so they ar
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 ```
 
-- `filters.js` — the real filter spec. Read and edit it in place from a worktree (edits produce no git diff) and run the tools against it: `node bin.js "$MAIN/filters.js"`, `node sync.js "$MAIN/filters.js"`.
+- `filters.js` — the real filter spec. Read and edit it in place from a worktree (edits produce no git diff) and run the tools against it: `node src/bin.js "$MAIN/filters.js"`, `node src/sync.js "$MAIN/filters.js"`.
 - `.gmail-credentials.json` (OAuth desktop-client JSON) and `.gmail-token.json` (refresh + access token, mode 600) — `sync.js`'s credentials. From a worktree, set `GMAIL_CREDENTIALS_FILE="$MAIN/.gmail-credentials.json" GMAIL_TOKEN_FILE="$MAIN/.gmail-token.json"`. Never `git add -A` blind in this public repo.
 - `AGENTS.local.md` — everything the privacy rule keeps out of this file: the account, current filter and label specifics, per-session findings. Read it before touching the accounts; edit it only under the mutex below.
 

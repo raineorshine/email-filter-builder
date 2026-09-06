@@ -8,13 +8,14 @@
     "url": "https://github.com/raineorshine"
   },
   "license": "ISC",
+  "main": "src/index.js",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "build": "node build.js",
     "format": "prettier --write .",
-    "sync": "node sync.js",
+    "sync": "node src/sync.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },

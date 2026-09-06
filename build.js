@@ -1,5 +1,5 @@
 const fs = require('fs')
-const { gmail, sieve } = require('./index')
+const { gmail, sieve } = require('./src/index')
 const sampleFilters = require('./filters.sample.js')
 
 const readmeTemplate = fs.readFileSync('README-template.md', 'utf-8')

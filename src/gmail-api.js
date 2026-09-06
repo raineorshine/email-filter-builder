@@ -130,7 +130,7 @@ const request = async (accessToken, method, url, body, attempt = 0) => {
 }
 
 /** Creates an authenticated client for the Gmail filter and label endpoints. The credentials and token default to the repo root, overridable via GMAIL_CREDENTIALS_FILE and GMAIL_TOKEN_FILE so a worktree can use the main checkout's gitignored files. */
-const GmailApi = async ({ credentialsFile = process.env.GMAIL_CREDENTIALS_FILE || path.join(__dirname, '.gmail-credentials.json'), tokenFile = process.env.GMAIL_TOKEN_FILE || path.join(__dirname, '.gmail-token.json') } = {}) => {
+const GmailApi = async ({ credentialsFile = process.env.GMAIL_CREDENTIALS_FILE || path.join(__dirname, '..', '.gmail-credentials.json'), tokenFile = process.env.GMAIL_TOKEN_FILE || path.join(__dirname, '..', '.gmail-token.json') } = {}) => {
   const accessToken = await AccessToken({ credentialsFile, tokenFile })
   const api = (method, resource, body) => request(accessToken, method, `${BASE}/${resource}`, body)
 

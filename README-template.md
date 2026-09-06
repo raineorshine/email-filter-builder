@@ -7,7 +7,7 @@ Limited to the specific use case of matching by sender, subject, and mailing lis
 ## Usage
 
 ```sh
-node bin.js filters.js
+node src/bin.js filters.js
 ```
 
 Writes to `./out`:
@@ -18,8 +18,8 @@ Writes to `./out`:
 To push the same spec straight to Gmail instead of importing the XML by hand:
 
 ```sh
-node sync.js filters.js          # dry run: prints the planned creates and deletes
-node sync.js filters.js --apply  # applies them
+node src/sync.js filters.js          # dry run: prints the planned creates and deletes
+node src/sync.js filters.js --apply  # applies them
 ```
 
 **filters.js:**
@@ -63,11 +63,11 @@ Two ways to get the filters into Gmail. Both render the same criteria and action
 
 ### Sync (recommended)
 
-`node sync.js` diffs the spec against the account's live filters through the Gmail API and reconciles them. It is idempotent: filters that already match are left alone, so a second run makes zero writes.
+`node src/sync.js` diffs the spec against the account's live filters through the Gmail API and reconciles them. It is idempotent: filters that already match are left alone, so a second run makes zero writes.
 
 ```sh
-node sync.js filters.js          # dry run: prints the planned creates and deletes
-node sync.js filters.js --apply  # applies them
+node src/sync.js filters.js          # dry run: prints the planned creates and deletes
+node src/sync.js filters.js --apply  # applies them
 ```
 
 - **Dry run by default.** Nothing is written without `--apply`, and `--apply` prompts before deleting unless `--yes` is passed. `--verbose` prints full queries instead of truncating them.
