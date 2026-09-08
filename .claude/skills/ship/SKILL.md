@@ -9,6 +9,14 @@ Solo-developer workflow for this repo. Take the current feature branch (usually 
 
 ## Procedure
 
+### 0. Prefix the session title with 🚀
+
+Read the session's title (`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a
+`🚀 ` prefix (`mcp__ccd_session_mgmt__set_session_title`), replacing any existing lifecycle prefix
+rather than stacking — a shipping session was usually `📦 ` a moment ago. Do this **now**, before any
+of the work: the sidebar should say what the session is doing while it is doing it. Step 7 puts the
+title back if the ship does not land. Do not report either. See `AGENTS.md` (Repo → Session titles).
+
 ### 1. Quality gates (must pass before committing)
 
 Run in order, stop on the first failure, fix, then re-run before proceeding:
@@ -75,6 +83,13 @@ MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && 
 
   Only do this when the user confirms the worktree is no longer needed.
 
-### 7. Report completion
+### 7. Correct the title if the ship did not land
+
+The push in step 6 is what counts as shipped. If it succeeded, the `🚀 ` from step 0 is already
+right — leave it. If it failed, or the ship was abandoned before the push, put the title back to the
+prefix that is true now (`📦 ` for a branch that is done and gated, otherwise whatever stage it
+actually reached). Do not report this step.
+
+### 8. Report completion
 
 Print `🚀 Shipped`.

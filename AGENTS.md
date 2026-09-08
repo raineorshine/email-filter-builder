@@ -77,6 +77,55 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 - Feature work happens on a branch in a worktree and lands on `master` squashed and fast-forwarded by the `ship` skill (`.claude/skills/ship/SKILL.md`), which also runs the quality gates: `npm run build && npm test && npm run format`.
 - Before pushing to a PR branch, check whether the PR is already merged (`gh pr view <n> --json state`). Pushes to a merged PR's branch land nowhere; cherry-pick the commits onto a fresh branch off master instead.
 
+### Session titles
+
+The chat sidebar shows a status dot (running / awaiting input / idle) and a branch glyph for
+worktree sessions; neither can be set from here — `set_session_title` takes a title string and
+nothing else. So a **single leading emoji on the title** is the only lever, and it is spent on what
+the app cannot know: where the work stands.
+
+| Prefix | Means                                                                                                     |
+| ------ | --------------------------------------------------------------------------------------------------------- |
+| ⏳     | implementing — after the opening prompt, before anything is shipped                                       |
+| 🔍     | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
+| 📮     | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
+| 📦     | done on the branch — ready to commit, or ready to ship                                                    |
+| 🚀     | shipping to `master`, or shipped                                                                          |
+| 🚙     | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
+| 🪦     | dead end — kept for the findings, not to resume                                                           |
+| 📚     | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
+
+**Never mention a prefix in the response** — not what it was set to, not that it was already right,
+not that it was left alone. It is sidebar state; say nothing about it unless asked.
+
+These are **stages, not flags**: exactly one prefix at a time, and setting a new one replaces
+whatever was there. **Every title carries one**, and a prefix comes off only when another takes its
+place — a bare title says nothing about the session, and the sidebar cannot tell it apart from a
+chat that never had a stage at all. A session with nothing left to do keeps the prefix of the last
+stage it reached. Set a prefix **optimistically** — when the stage _starts_, not when it succeeds —
+and correct it if the stage falls over. A title that only becomes true at the end is blank for the
+whole stretch the sidebar is there to describe. Only one reads cleanly at sidebar width, and 🚀
+after 📦 is noise — the later stage implies the earlier.
+
+🚀 is set by the `ship` skill, which sets it before it runs the gates and puts it back if the push
+fails, so it stays true on its own. 📚 is set by hand the moment the `learn` skill is invoked —
+before reading anything or making any edit. The rest are set by hand when they apply, and nothing
+reconciles a title against reality: an abandoned session keeps whatever prefix it had. 🚙 in
+particular is worth setting before handing back on anything the user has to finish — a Proton
+forwarding confirmation, an OAuth client secret, a batch of filter deletions in the Gmail UI — since
+the idle dot cannot tell "waiting on you" from "given up on".
+
+⏳ is the weakest of them: every other prefix takes precedence, so it only shows while nothing more
+specific applies. Set it by hand when implementation starts, and replace it when control goes back
+to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
+reached.
+
+🔍 and 📮 are the ones that matter to _other_ sessions. Editing `filters.js` is parallel, but the
+accounts are one shared slot: a dry run diffs against live state, and an apply changes it, so a
+second session that syncs concurrently audits a plan that is already stale. 📮 in the sidebar is the
+only warning another session gets. Carry it for browser work against the mail UIs too — the browser
+is equally single-occupancy.
+
 ## Mail setup
 
 - **Gmail** is the destination account and the backend for mail, user labels, and Gmail filters. Gmail filters run server-side before any client sees a message.
