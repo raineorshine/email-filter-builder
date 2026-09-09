@@ -14,6 +14,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 - `node src/sync.js filters.js` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write, `--yes` to skip the delete prompt, `--verbose` to print full queries. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md).
 - `src/gmail.js` exports `Specs`, the shared conditions-to-filters expansion (OR-merging, 600-char chunking, one label per filter). Both the XML renderer and `sync.js` go through it, so the two formats cannot drift. Change merging semantics there, not in either consumer.
 - `site/` is the small public web page the Gmail OAuth consent screen links to (home page plus privacy policy), deployed separately from the CLI. It exists because Google will not let an app leave Testing status without a reachable home page and privacy policy URL. The contact address is injected from `CONTACT_EMAIL` (a gitignored `.env` locally, a service variable in production) rather than committed, since this repo is public — without it the contact falls back to the GitHub issue tracker. Hosting specifics are in AGENTS.local.md.
+- A `subject` is a substring in sieve and a quoted phrase in Gmail, so it must appear contiguously in the real subject. A family that varies mid-phrase needs one condition per variant — a stop word alone splits it, the way "Invoice is Ready" shares no contiguous fragment with "Invoice Ready" past the first word. Prefer the longest fragment shared by the whole family, and check it against the real subjects rather than one sample.
 - Mapping rules are documented in README.md (Gmail → Mapping). Key invariants: conditions sharing the same actions are OR-merged into `hasTheWord` queries chunked at 600 chars (`maxQueryLength` option); `archive` → skip the inbox (`shouldArchive` in XML, `removeLabelIds: [INBOX]` over the API); `trash` → delete (`shouldTrash` / `addLabelIds: [TRASH]`); one label per Gmail filter (multi-label entries expand); sieve globs become Gmail token search terms — dangling fragments ≤3 chars are dropped, longer ones kept.
 - After renderer changes, audit the planned queries against the real `filters.js` before applying — `node src/sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 - `README.md` is generated from `README-template.md` by `npm run build` — edit the template, never the output.
@@ -21,7 +22,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 ### Skills
 
 - **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`. See **Git**.
-- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so it cannot drift; keep it that way. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**.
+- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so it cannot drift; keep it that way. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**. It also reports **near misses**: entries that fire nothing but were written for mail like this, whose `from` no longer reaches the sender. That is how a rule dies when a sender changes domain, and nothing else catches it — a dead rule renders, syncs and diffs as in sync, because the spec and the account agree on a filter that matches nothing. Read them before concluding that mail is simply unfiltered.
 - **"Why did this get labeled?" is often not a filter question at all.** Before proposing a spec change, settle which namespace the label belongs to — a Shortwave built-in or auto-apply rule wears the same chip as a Gmail user label and no entry will ever explain it. See **Mail setup → Label namespaces**.
 
 ### Bulk-editing filters.js from a script
@@ -84,7 +85,7 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 - **One Bash call.** Shell state does not persist between tool calls, so acquire, edit and release must be a single invocation or the `trap` fires early and frees the lock mid-edit.
 - **Re-read inside the lock.** Never write back content read before acquiring it.
 - The lock lives under `.git/`, which is shared by every worktree and never committed.
-- **`$MAIN` is for the gitignored files only.** `AGENTS.md` is committed, so it _does_ appear in worktrees — edit the worktree's copy. Reusing the `$MAIN` path for it out of habit writes the change into whatever branch the main checkout has out (usually `master`), where it sits unstaged and easy to miss. Recovering means saving the diff, `git restore`-ing the main checkout, and reapplying in the worktree.
+- **`$MAIN` is for the gitignored files only.** `AGENTS.md` is committed, so it _does_ appear in worktrees — edit the worktree's copy. Reusing the `$MAIN` path for it out of habit writes the change into whatever branch the main checkout has out (usually `master`), where it sits unstaged and easy to miss. Recovering means saving the diff, `git restore`-ing the main checkout, and reapplying in the worktree. The same slip runs code rather than writing it: `cd "$MAIN"` before invoking a committed script — a `.claude/skills/*` helper, anything under `src/` — executes whatever `master` has, not the branch, so an edit under test appears to do nothing. Stay in the worktree and pass `"$MAIN/filters.js"` as an argument, which is what the tools take a path for.
 
 ### Git
 
@@ -152,8 +153,11 @@ specific applies. Set it by hand when implementation starts, and replace it when
 to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
 reached.
 
-🔍 and 💾 are the ones that matter to _other_ sessions. Editing `filters.js` is parallel, but the
-accounts are one shared slot: a dry run diffs against live state, and an apply changes it, so a
+🔍 and 💾 are the ones that matter to _other_ sessions. `filters.js` is one file in the main
+checkout, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
+early in a turn can be stale by the end of one — re-read before reporting it, and expect a finding
+about a live entry to be someone else's edit rather than a bug. The accounts are one shared slot on
+top of that: a dry run diffs against live state, and an apply changes it, so a
 second session that syncs concurrently audits a plan that is already stale. 💾 in the sidebar is the
 only warning another session gets. Carry it for browser work against the mail UIs too — the browser
 is equally single-occupancy.
@@ -233,7 +237,9 @@ Lessons that held across every web app driven from these sessions — the Gmail,
   question is about all of them.
 - **Dry-run the previous spec before applying an edit.** The account is not necessarily in sync to
   begin with, and unapplied drift rides along in whatever you apply. Diffing the old spec against
-  live first is what separates your change's effect from what was already pending.
+  live first is what separates your change's effect from what was already pending. The baseline
+  goes stale as easily as the plan does — another session editing the spec or syncing in between
+  changes what an apply would do — so audit the plan you are about to apply, not an earlier one.
 - **`sync.js` creates any label the spec names**, so a typo or a foreign label name imported from
   another provider silently becomes a new Gmail label. Read the dry run's `Labels to create` line
   before applying, and confirm an unfamiliar name with the user — label vocabularies do not map 1:1
