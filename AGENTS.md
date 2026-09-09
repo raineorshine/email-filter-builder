@@ -88,18 +88,28 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 The chat sidebar shows a status dot (running / awaiting input / idle) and a branch glyph for
 worktree sessions; neither can be set from here — `set_session_title` takes a title string and
 nothing else. So a **single leading emoji on the title** is the only lever, and it is spent on what
-the app cannot know: where the work stands.
+the app cannot know: where the work stands — so that the sidebar answers "which session is mid-sync
+against the account" without opening any of them.
+
+**Ask which session this is before renaming one.** `mcp__ccd_session_mgmt__get_session` with
+`"self"` is the only answer, and it changes under a fork: a forked session carries the whole
+transcript, the id it read earlier in that transcript, and a different id of its own, so a rename
+that reuses the remembered one retitles the session it forked _from_ — often the one still mid-sync,
+whose title is therefore the one the sidebar most needs to be true. A fork also starts in the
+worktree of the session it forked from, and nothing stops a branch being checked out there, which
+moves that worktree under the other session's feet; put it back on the branch it was on when the
+work is landed.
 
 | Prefix | Means                                                                                                     |
 | ------ | --------------------------------------------------------------------------------------------------------- |
-| ⏳     | implementing — after the opening prompt, before anything is shipped                                       |
-| 🔍     | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
-| 📮     | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
-| 📦     | done on the branch — ready to commit, or ready to ship                                                    |
-| 🚀     | shipping to `master`, or shipped                                                                          |
-| 🚙     | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
-| 🪦     | dead end — kept for the findings, not to resume                                                           |
-| 📚     | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
+| `⏳ `  | implementing — the weakest of them; every other prefix takes precedence                                   |
+| `🔍 `  | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
+| `📮 `  | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
+| `📦 `  | done on the branch — gated and shippable without re-running anything                                      |
+| `🚀 `  | shipping to `master`, or shipped                                                                          |
+| `🚙 `  | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
+| `🪦 `  | dead end — kept for the findings, not to resume                                                           |
+| `📚 `  | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
 
 **Never mention a prefix in the response** — not what it was set to, not that it was already right,
 not that it was left alone. It is sidebar state; say nothing about it unless asked.
@@ -108,18 +118,25 @@ These are **stages, not flags**: exactly one prefix at a time, and setting a new
 whatever was there. **Every title carries one**, and a prefix comes off only when another takes its
 place — a bare title says nothing about the session, and the sidebar cannot tell it apart from a
 chat that never had a stage at all. A session with nothing left to do keeps the prefix of the last
-stage it reached. Set a prefix **optimistically** — when the stage _starts_, not when it succeeds —
-and correct it if the stage falls over. A title that only becomes true at the end is blank for the
-whole stretch the sidebar is there to describe. Only one reads cleanly at sidebar width, and 🚀
-after 📦 is noise — the later stage implies the earlier.
+stage it reached. The harness names a session, so every session starts without a prefix: putting the
+first one on that inherited title is part of the first response, not something to wait for a stage
+change to prompt. Only one reads cleanly at sidebar width, and 🚀 after 📦 is noise — the later
+stage implies the earlier.
 
-🚀 is set by the `ship` skill, which sets it before it runs the gates and puts it back if the push
-fails, so it stays true on its own. 📚 is set by hand the moment the `learn` skill is invoked —
-before reading anything or making any edit. The rest are set by hand when they apply, and nothing
-reconciles a title against reality: an abandoned session keeps whatever prefix it had. 🚙 in
-particular is worth setting before handing back on anything the user has to finish — a Proton
-forwarding confirmation, an OAuth client secret, a batch of filter deletions in the Gmail UI — since
-the idle dot cannot tell "waiting on you" from "given up on".
+Set a prefix **optimistically** — when the stage _starts_, not when it succeeds — and correct it if
+the stage falls over. A title that only becomes true at the end is blank for the whole stretch the
+sidebar is there to describe. 🚀 is set by the `ship` skill, which sets it before it runs the gates
+and puts it back if the push fails, so it stays true on its own. 📚 goes on the moment the `learn`
+skill is invoked, before anything is read. The rest are set by hand when they apply, and nothing
+reconciles a title against reality: an abandoned session keeps whatever prefix it had.
+
+**Handing back is itself a stage.** A response that closes on something for the user to do — a
+decision, a password, an OAuth client secret — is a park, and 🚙 goes on before that response, since
+the idle dot cannot tell "waiting on you" from "given up on". Handing over a change to the account
+is the exception: while the user is clicking through a batch of filter deletions in the Gmail UI, or
+confirming a Proton forward, the account is still in flux, so it stays 📮 — the warning to other
+sessions outranks the one to the user, who is already reading the response — and becomes 🚙 once
+nothing is in flight.
 
 ⏳ is the weakest of them: every other prefix takes precedence, so it only shows while nothing more
 specific applies. Set it by hand when implementation starts, and replace it when control goes back
@@ -131,6 +148,12 @@ accounts are one shared slot: a dry run diffs against live state, and an apply c
 second session that syncs concurrently audits a plan that is already stale. 📮 in the sidebar is the
 only warning another session gets. Carry it for browser work against the mail UIs too — the browser
 is equally single-occupancy.
+
+A cloud session never reaches 🔍, 📮 or 🚀. `filters.js` and the OAuth credentials sit outside the
+repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
+and `ship` pushes straight to `master`, where the cloud harness wants a branch and a pull request
+instead. It ends at 🚙 — the work is sound and waiting on a session on the user's machine to verify
+it against the real spec.
 
 ## Mail setup
 
