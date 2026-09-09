@@ -104,7 +104,7 @@ work is landed.
 | ------ | --------------------------------------------------------------------------------------------------------- |
 | `⏳ `  | implementing — the weakest of them; every other prefix takes precedence                                   |
 | `🔍 `  | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
-| `📮 `  | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
+| `💾 `  | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
 | `📦 `  | done on the branch — gated and shippable without re-running anything                                      |
 | `🚀 `  | shipping to `master`, or shipped                                                                          |
 | `🚙 `  | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
@@ -134,7 +134,7 @@ reconciles a title against reality: an abandoned session keeps whatever prefix i
 decision, a password, an OAuth client secret — is a park, and 🚙 goes on before that response, since
 the idle dot cannot tell "waiting on you" from "given up on". Handing over a change to the account
 is the exception: while the user is clicking through a batch of filter deletions in the Gmail UI, or
-confirming a Proton forward, the account is still in flux, so it stays 📮 — the warning to other
+confirming a Proton forward, the account is still in flux, so it stays 💾 — the warning to other
 sessions outranks the one to the user, who is already reading the response — and becomes 🚙 once
 nothing is in flight.
 
@@ -143,13 +143,13 @@ specific applies. Set it by hand when implementation starts, and replace it when
 to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
 reached.
 
-🔍 and 📮 are the ones that matter to _other_ sessions. Editing `filters.js` is parallel, but the
+🔍 and 💾 are the ones that matter to _other_ sessions. Editing `filters.js` is parallel, but the
 accounts are one shared slot: a dry run diffs against live state, and an apply changes it, so a
-second session that syncs concurrently audits a plan that is already stale. 📮 in the sidebar is the
+second session that syncs concurrently audits a plan that is already stale. 💾 in the sidebar is the
 only warning another session gets. Carry it for browser work against the mail UIs too — the browser
 is equally single-occupancy.
 
-A cloud session never reaches 🔍, 📮 or 🚀. `filters.js` and the OAuth credentials sit outside the
+A cloud session never reaches 🔍, 💾 or 🚀. `filters.js` and the OAuth credentials sit outside the
 repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
 and `ship` pushes straight to `master`, where the cloud harness wants a branch and a pull request
 instead. It ends at 🚙 — the work is sound and waiting on a session on the user's machine to verify
