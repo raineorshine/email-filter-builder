@@ -12,6 +12,10 @@
  *             Gmail matches whole tokens, and the renderer drops short dangling glob fragments, so
  *             a Gmail filter can match mail the sieve glob would not.
  * Queries come from src/gmail.js `Specs`, so this cannot drift from what sync.js writes.
+ *
+ * Entries that fire nothing are then re-examined for near misses — conditions aimed at this message
+ * whose `from` no longer reaches it. A rule goes dead this way when a sender changes domain: it
+ * matches nothing and reports nothing, so the mail looks simply unfiltered rather than misfiltered.
  */
 
 const { execSync } = require('child_process')
@@ -67,9 +71,15 @@ const termMatches = (term, message) => {
   })
 }
 
+/** Normalizes a condition to its criteria, since a bare string condition is shorthand for a `from` glob. */
+const criteriaOf = condition => (typeof condition === 'string' ? { from: condition } : condition)
+
+/** The fileinto destinations of an entry, in order. */
+const destinationsOf = filter => filter.actions.flatMap(action => action.fileinto || [])
+
 /** Describes why one spec condition matched, or null if it did not. */
 const specReason = (condition, message) => {
-  const { from, list, subject } = typeof condition === 'string' ? { from: condition } : condition
+  const { from, list, subject } = criteriaOf(condition)
   const reasons = []
   if (from) {
     if (!globToRegExp(from).test(message.from)) return null
@@ -86,6 +96,41 @@ const specReason = (condition, message) => {
   return reasons.length > 0 ? reasons.join(' AND ') : null
 }
 
+/** Domain labels too common to identify a sender, so sharing one is no evidence of a sibling domain. */
+const genericLabels = new Set(['app', 'co', 'com', 'e', 'email', 'info', 'io', 'mail', 'net', 'org', 'send', 'smtp', 'us', 'uk', 'www'])
+
+/** The distinctive domain labels of an address or glob — "acme" for both "*@acme.co" and "support@mail.acme.com". */
+const distinctiveLabels = address =>
+  new Set(
+    address
+      .slice(address.lastIndexOf('@') + 1)
+      .split('.')
+      .map(label => label.replace(/\*/g, '').toLowerCase())
+      .filter(label => label.length > 1 && !genericLabels.has(label)),
+  )
+
+/**
+ * Why one condition of an entry that fired nothing still looks aimed at this message, or null if the
+ * condition is simply about other mail. Both shapes mean the same thing — a `from` that no longer
+ * reaches a sender the entry was written for:
+ *   - stale sender   every other criterion matches and only the sender does not, so the condition
+ *                    was written for exactly this mail and the address has since moved. At least one
+ *                    matching criterion must be distinctive — a one-word subject fragment like
+ *                    "Payment" recurs across unrelated senders and is no evidence of intent.
+ *   - sibling domain the sender shares a distinctive domain label with the message but does not
+ *                    match, e.g. "*@acme.co" against support@mail.acme.com.
+ */
+const nearMiss = (condition, message) => {
+  const { from, list, subject } = criteriaOf(condition)
+  if (!from || !message.from || globToRegExp(from).test(message.from)) return null
+  const others = [subject && { distinctive: /\s/.test(subject.trim()), ok: message.subject.toLowerCase().includes(subject.toLowerCase()), reason: `subject contains ${JSON.stringify(subject)}` }, list && { distinctive: true, ok: message.list.toLowerCase().includes(list.toLowerCase()), reason: `List-Id contains ${JSON.stringify(list)}` }].filter(x => x)
+  if (others.length > 0 && others.every(other => other.ok) && others.some(other => other.distinctive)) {
+    return `stale sender    from ${JSON.stringify(from)} does not match ${message.from}, but ${others.map(other => other.reason).join(' AND ')}`
+  }
+  const shared = [...distinctiveLabels(from)].filter(label => distinctiveLabels(message.from).has(label))
+  return shared.length > 0 ? `sibling domain  from ${JSON.stringify(from)} shares ${JSON.stringify(shared.join(' '))} with ${message.from} but does not match` : null
+}
+
 const message = { from: arg('from') || '', list: arg('list') || '', subject: arg('subject') || '' }
 if (!message.from && !message.subject && !message.list) {
   console.error('Usage: node match.js --from <address> [--subject <text>] [--list <id>] [--filters <path>]')
@@ -99,17 +144,21 @@ console.log(`Spec:    ${filtersPath} (${filters.length} entries)`)
 console.log(`Message: from=${message.from || '—'} subject=${JSON.stringify(message.subject)} list=${message.list || '—'}\n`)
 
 let matched = 0
+const nearMisses = []
 filters.forEach((filter, i) => {
   const specHits = filter.conditions.map(condition => ({ condition, reason: specReason(condition, message) })).filter(hit => hit.reason)
   const gmailHits = Specs(filter, Number(arg('maxQueryLength')) || undefined)
     .filter(spec => splitTerms(spec.query).some(term => termMatches(term, message)))
     .map(spec => ({ label: spec.label, query: splitTerms(spec.query).find(term => termMatches(term, message)), spec }))
 
-  if (specHits.length === 0 && gmailHits.length === 0) return
+  if (specHits.length === 0 && gmailHits.length === 0) {
+    const reasons = [...new Set(filter.conditions.map(condition => nearMiss(condition, message)).filter(x => x))]
+    if (reasons.length > 0) nearMisses.push({ i, destinations: destinationsOf(filter), reasons })
+    return
+  }
   matched++
 
-  const destinations = filter.actions.flatMap(action => action.fileinto)
-  console.log(`entry[${i}] → ${destinations.join(', ')}`)
+  console.log(`entry[${i}] → ${destinationsOf(filter).join(', ')}`)
   specHits.forEach(hit => console.log(`  spec   ${hit.reason}${hit.condition.comment ? `  (${hit.condition.comment})` : ''}`))
   if (specHits.length === 0) console.log('  spec   NO MATCH — the live Gmail filter is broader than the sieve glob')
   const seen = new Set()
@@ -124,3 +173,11 @@ filters.forEach((filter, i) => {
 })
 
 console.log(matched === 0 ? 'No entry matches. Any labels on the message came from outside filters.js.' : `${matched} matching ${matched === 1 ? 'entry' : 'entries'}.`)
+
+if (nearMisses.length > 0) {
+  console.log(`\n${nearMisses.length} near ${nearMisses.length === 1 ? 'miss' : 'misses'} — fired nothing, but written for mail like this. Check each for a sender that has moved domain:`)
+  nearMisses.forEach(({ i, destinations, reasons }) => {
+    console.log(`\nentry[${i}] → ${destinations.join(', ')}`)
+    reasons.forEach(reason => console.log(`  ${reason}`))
+  })
+}

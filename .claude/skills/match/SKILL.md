@@ -46,6 +46,19 @@ two engines run the same spec:
 A `spec`/`gmail` disagreement is the interesting result, not a bug in the matcher — report it. A
 `gmail` match with no `spec` match means the live filter is broader than the pattern intends.
 
+Entries that fire nothing are then re-checked for **near misses** — conditions written for mail like
+this whose `from` no longer reaches it. This is how a rule goes dead when a sender changes domain:
+it matches nothing, reports nothing, and the mail reads as merely unfiltered rather than misfiltered.
+Two shapes are reported, and a stale rule usually shows both:
+
+- `stale sender` — every other criterion matches and only the sender does not, so the condition was
+  written for exactly this mail. A one-word subject fragment does not count; it recurs too widely.
+- `sibling domain` — the sender shares a distinctive domain label with the message but does not
+  match, e.g. `*@acme.co` against `support@mail.acme.com`.
+
+A near miss is a finding, not a footnote: the entry names the labels and actions the message was
+meant to get, so it says what the mail _should_ have done.
+
 ### 3. Account for every label on screen
 
 Three different things can wear the same name (`AGENTS.md` → Mail setup → Label namespaces), and
@@ -71,6 +84,9 @@ The spec is not proof of what is on the account — the account may have drift, 
   predates it (Gmail filters are not retroactive). Confirm with a dry run —
   `node src/sync.js "$MAIN/filters.js" --verbose` — and check whether that entry's query is in the
   create list. Set the session title's 🔍 prefix before any live-account check.
+- **Nothing matches and the mail looks unfiltered:** read the near misses first. A stale `from` is
+  the likeliest cause, and it is invisible in the plan a dry run prints — a dead rule is still in
+  sync, because the spec and the account agree on a filter that matches nothing.
 - **Label present but nothing matches:** a hand-made Gmail filter, a Shortwave rule, or a Proton
   filter. Hand-made Gmail rules populate the API's `from`/`subject` fields rather than `query` — a
   dry run shows them as deletes. Shortwave rules live in Settings → Filters; the UI has no export,
