@@ -21,17 +21,26 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 ### Skills
 
 - **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`. See **Git**.
-- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so it cannot drift; keep it that way.
+- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so it cannot drift; keep it that way. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**.
 - **"Why did this get labeled?" is often not a filter question at all.** Before proposing a spec change, settle which namespace the label belongs to — a Shortwave built-in or auto-apply rule wears the same chip as a Gmail user label and no entry will ever explain it. See **Mail setup → Label namespaces**.
 
 ### Bulk-editing filters.js from a script
 
-Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Four things
+Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Five things
 bite:
 
 - **Dedupe by glob match, not string equality.** An existing `*@domain.com` already covers an
   incoming `user@domain.com`, and adding it again is dead weight. A condition carrying a `subject`
-  is _not_ general coverage of its sender, so it must not count as a match.
+  is _not_ general coverage of its sender, so it must not count as a match. Do not write this check
+  again: `.claude/skills/match/match.js --from <address>` already reports which entries cover an
+  address and under which label, over the real spec. Run the whole incoming list through it first —
+  in one import a substantial fraction turned out to be already covered and needed no entry at all.
+- **The win is usually widening an existing entry, not adding the import.** When the incoming sender
+  is the third or fourth one-off at a domain `filters.js` already lists, replacing all of them with
+  `*@domain` retires more conditions than the import adds. Rotating machine senders
+  (`no-reply-<hash>@`) are the clearest case — exact addresses can never keep up with them. Decide
+  the shape per domain rather than globbing everything: the spec deliberately keeps exact addresses
+  for consumer domains and for individual people at a mixed domain, where a glob would over-match.
 - **Prettier collapses short `conditions` arrays onto one line**, so the file holds both the
   multi-line and the single-line form. A line-based inserter has to handle each, or it will splice
   entries in above the `conditions:` key and produce a syntax error.
@@ -181,6 +190,16 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - **Refs go stale** after any click, scroll, or re-render. Re-run `find` immediately before each click, one mutation per call, and verify state afterwards — JS DOM reads are the most reliable verification. A stale ref opened the wrong Proton filter's Edit dialog twice in one session.
 - **When a ref click does nothing, dispatch MouseEvents** (`mouseover/mousedown/mouseup/click`; Proton modals also need `pointerdown/pointerup`) from `javascript_tool`. Which of the two works is app- and control-specific; the per-app notes say which.
 - **"Cannot access a chrome-extension:// URL of different extension"** wedges `computer` (and in Proton also `javascript_tool`) while `find`/`read_page`/`get_page_text` keep working. In Gmail it means a native dialog is pending; in Proton it happens with no dialog at all. Recovery is the same: close the tab and open a fresh one.
+- **Read the app's own data layer, not its UI.** Before transcribing rows one dialog at a time, try
+  the two page-context routes on a logged-in tab: the app's HTTP API carrying the session cookie
+  (`credentials: 'include'`), and IndexedDB, which a local-first client fills with its whole account
+  state so it can work offline. Both are same-origin from `javascript_tool`, so neither needs an API
+  key or a second sign-in. Enumerate before guessing — `indexedDB.databases()`, then the object store
+  names, then the keys. A UI that advertises no export usually still has one of these: it is how
+  Proton's filters and Shortwave's auto-apply rules both come out.
+- **A desktop build of a web app is a separate store.** Its Electron renderer keeps its own IndexedDB
+  under its own app-data directory, which browser-tab tools cannot reach. It syncs the same backend,
+  so the browser copy is not a partial one — drive the web app and leave the desktop app alone.
 - **Getting bulk data out of a page needs chunking and a checksum.** `javascript_tool` truncates a
   long result mid-value, and the extension replaces anything that looks like cookie or base64 data
   with a redaction marker — so returning a raw API response yields nothing usable. Stash the payload
@@ -270,7 +289,20 @@ Everything below applies only when a session is forced into `https://mail.google
 
 - "Always Apply" / auto-apply rules (Settings → Filters → Label auto-apply rules) are stored in **Shortwave's backend** — never as Gmail filters, even for plain sender→label rules targeting Gmail labels. They don't count toward Gmail's 1,000-filter cap.
 - Effect vs rule: applying a Gmail label syncs to Gmail (visible in all clients); the rule itself is Shortwave-only and dies with the Shortwave account.
-- **No export** for auto-apply rules — the rule dialog offers only add/remove sender. To export, open each rule's gear and transcribe its sender list.
+- **The UI has no export** for auto-apply rules — the rule dialog offers only add/remove sender — but
+  the whole rule set is in IndexedDB, so do not transcribe gear dialogs one at a time. On any
+  logged-in tab, open the `shortwave-db-acct-<id>` database, read object store `settings` key
+  `all_settings`, and take `.rules`. Each entry is
+  `{ id: { criteria: { senderEmailAddress } }, settings: { userLabelsToAdd, userLabelsToRemove, sharedLabelsToAdd, sharedLabelsToRemove, threadFlagsToAdd, threadFlagsToRemove, inboxVolume, autoTrashMessage } }`.
+  Resolve the `{labelId: "gmail/Label_N"}` references against object store `gmail_labels` (`{id, name, color}`).
+  `all_settings` also holds `bundling`, `notifications` and `deliverySchedules` by the same route.
+- **A rule keys on exactly one sender address and nothing else.** `criteria` has no subject or
+  list field, so a Shortwave rule can never be narrower than "all mail from this address" — which is
+  why they accumulate one per sender and why they translate cleanly into `filters.js` `from` entries.
+- **`threadFlagsToAdd` is a built-in label, not a Gmail one.** A rule adding e.g. `PURCHASES` is
+  driving Shortwave's own label, which wears the same name as a Gmail user label in the picker
+  (**Label namespaces**) and has no Gmail equivalent. Never translate one into a `filters.js` entry.
+  `userLabelsToRemove` is likewise not portable: Gmail filters add labels, they cannot remove them.
 - Shortwave cannot manage Gmail filters: it shows a cached count (Settings → Filters → "Gmail filters", refresh link) and links out to Gmail settings for editing.
 - AI filters and the quick-start filters (Needs Action, Cold Outreach, FYI, Travel, Finance, Purchases) are Shortwave-side natural-language classifiers, off unless added.
 

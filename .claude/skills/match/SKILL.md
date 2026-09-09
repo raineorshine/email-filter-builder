@@ -73,7 +73,8 @@ The spec is not proof of what is on the account — the account may have drift, 
   create list. Set the session title's 🔍 prefix before any live-account check.
 - **Label present but nothing matches:** a hand-made Gmail filter, a Shortwave rule, or a Proton
   filter. Hand-made Gmail rules populate the API's `from`/`subject` fields rather than `query` — a
-  dry run shows them as deletes. Shortwave rules live in Settings → Filters and have no export.
+  dry run shows them as deletes. Shortwave rules live in Settings → Filters; the UI has no export,
+  but the rule set is readable from IndexedDB (`AGENTS.md` → Shortwave → Rules and filters).
 - **In Proton, the folder is wrong:** filter order decides it — all matching filters run in list
   order and the last conflicting `fileinto` wins (`AGENTS.md` → ProtonMail → Filter order).
 
