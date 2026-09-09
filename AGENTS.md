@@ -18,6 +18,12 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 - After renderer changes, audit the planned queries against the real `filters.js` before applying — `node src/sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 - `README.md` is generated from `README-template.md` by `npm run build` — edit the template, never the output.
 
+### Skills
+
+- **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`. See **Git**.
+- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so it cannot drift; keep it that way.
+- **"Why did this get labeled?" is often not a filter question at all.** Before proposing a spec change, settle which namespace the label belongs to — a Shortwave built-in or auto-apply rule wears the same chip as a Gmail user label and no entry will ever explain it. See **Mail setup → Label namespaces**.
+
 ### Bulk-editing filters.js from a script
 
 Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Four things
