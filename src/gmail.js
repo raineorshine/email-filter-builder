@@ -23,16 +23,20 @@ const FromPiece = (piece, i, pieces) => {
   return right.replace(/^[.@_+-]+|[.@_+-]+$/g, '')
 }
 
-/** Converts a sieve :matches glob (e.g. "*@*.example.com") into an equivalent Gmail from expression. Gmail matches addresses by token sequence, so each glob piece becomes a search term and the terms are ANDed. Exact addresses pass through unchanged. */
+/** True if Gmail would read a value as query syntax rather than text: whitespace separates words, parentheses group, braces are an OR group, a leading `-` negates, a leading `+` asks for an exact word, a `+` elsewhere reads as OR unless it is part of an address ("foo+bar" is "foo OR bar", "foo+bar@example.com" is one address), and AND, AROUND and OR alone are operators. This is gmailctl's NeedsQuoting plus the leading `-` and `+` and the bare operators. */
+const isQuerySyntax = value => /[\s(){}]|^[-+]|^(?:AND|AROUND|OR)$/.test(value) || (value.includes('+') && !value.includes('@'))
+
+/** Quotes a value Gmail would otherwise read as query syntax, so it is searched as text: a multi-word subject becomes a phrase rather than words in any order, and a one-word "-urgent" matches that word rather than every subject without it. Any other value is left bare, since a changed query makes sync.js replace its filter. Safe for every value searchable() has accepted: it refused the double quote, the one character a phrase cannot hold. */
+const Quote = value => (isQuerySyntax(value) ? `"${value}"` : value)
+
+/** Converts a sieve :matches glob (e.g. "*@*.example.com") into an equivalent Gmail from expression. Gmail matches addresses by token sequence, so each glob piece becomes a search term and the terms are ANDed; an exact address is a single term. A term holding query syntax is quoted on its own, since quoting the whole expression would turn the ANDed terms into one phrase. */
 const From = from =>
   from
     .split('*')
     .map(FromPiece)
     .filter(x => x)
+    .map(Quote)
     .join(' ')
-
-/** Converts a sieve :contains subject into a Gmail subject expression. Multi-word subjects are quoted so Gmail matches the phrase rather than the words in any order. */
-const Subject = subject => (/\s/.test(subject) ? `"${subject}"` : subject)
 
 /** Refuses a value Gmail search cannot express. Its syntax has no escape for a double quote: inside a term one opens or closes a phrase, changing what the rest of the merged query matches, so no rendering would match the same mail as the sieve. A backslash passes through as ordinary punctuation, since the syntax has no escape character at all. */
 const searchable = (field, value) => {
@@ -44,8 +48,8 @@ const searchable = (field, value) => {
 const Term = condition => {
   const { from, list, subject } = typeof condition === 'string' ? { from: condition } : condition
   const fromQuery = from && From(searchable('from', from))
-  const subjectQuery = subject && Subject(searchable('subject', subject))
-  const listQuery = list && searchable('list', list)
+  const subjectQuery = subject && Quote(searchable('subject', subject))
+  const listQuery = list && Quote(searchable('list', list))
   const parts = [fromQuery && `from:(${fromQuery})`, subjectQuery && `subject:(${subjectQuery})`, listQuery && `list:(${listQuery})`].filter(x => x)
   return parts.length > 1 ? `(${parts.join(' ')})` : parts[0] || null
 }

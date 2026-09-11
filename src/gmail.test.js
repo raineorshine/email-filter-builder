@@ -198,6 +198,20 @@ test('list is ANDed with from and subject', () => {
   expect(queries(gmail(filters, { updated }))).toEqual(['(from:(news@example.com) subject:(Weekly) list:(dev.example.com))'])
 })
 
+describe('Gmail query syntax in a value is quoted, so the value is searched as text', () => {
+  const query = (...conditions) => gmail.Specs({ actions: [{ fileinto: ['X'] }], conditions })[0].query
+
+  test('a leading - would negate the term, matching every subject without the word', () => expect(query({ subject: '-urgent' })).toBe('subject:("-urgent")'))
+  test('a leading + would ask for an exact word', () => expect(query({ subject: '+urgent' })).toBe('subject:("+urgent")'))
+  test('an unbalanced parenthesis would end the term early and break every term merged after it', () => expect(query({ subject: 'dispatched)' }, 'news@example.com')).toBe('subject:("dispatched)") OR from:(news@example.com)'))
+  test('braces would be an OR group', () => expect(query({ subject: '{sketch}' })).toBe('subject:("{sketch}")'))
+  test('a + outside an address would read as OR', () => expect(query({ subject: 'tips+tricks' })).toBe('subject:("tips+tricks")'))
+  test('AND, AROUND and OR alone would be operators', () => expect(query({ subject: 'AND' }, { subject: 'AROUND' }, { subject: 'OR' })).toBe('subject:("AND") OR subject:("AROUND") OR subject:("OR")'))
+  test('a list id is quoted the same way', () => expect(query({ list: 'dev+ops.example.com' })).toBe('list:("dev+ops.example.com")'))
+  test('each from glob piece is quoted on its own, so the pieces stay ANDed', () => expect(query('dev+ops@*.example.com')).toBe('from:("dev+ops" example.com)'))
+  test('a value without query syntax is left bare, so its filter is not replaced', () => expect(query({ subject: 'follow-up' }, { subject: 'or' }, { subject: 'ORBIT' }, 'jane+news@example.com')).toBe('subject:(follow-up) OR subject:(or) OR subject:(ORBIT) OR from:(jane+news@example.com)'))
+})
+
 test('escapes XML special characters', () => {
   const filters = [
     {

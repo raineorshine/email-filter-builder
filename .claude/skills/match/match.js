@@ -40,13 +40,16 @@ const globToRegExp = glob =>
 /** True if term appears in text on token boundaries, which is how Gmail matches search terms. */
 const tokenMatch = (text, term) => new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z0-9])`, 'i').test(text)
 
-/** Splits a query on its top-level " OR " separators, ignoring the ones inside parentheses. */
+/** Splits a query on its top-level " OR " separators, ignoring the ones inside parentheses or a quoted phrase. A phrase can hold any character but a double quote, which the renderer refuses. */
 const splitTerms = query => {
   const terms = []
   let depth = 0
+  let quoted = false
   let start = 0
   for (let i = 0; i < query.length; i++) {
-    if (query[i] === '(') depth++
+    if (query[i] === '"') quoted = !quoted
+    else if (quoted) continue
+    else if (query[i] === '(') depth++
     else if (query[i] === ')') depth--
     else if (depth === 0 && query.slice(i, i + 4) === ' OR ') {
       terms.push(query.slice(start, i))
@@ -56,16 +59,20 @@ const splitTerms = query => {
   return [...terms, query.slice(start)].map(t => t.trim()).filter(x => x)
 }
 
-/** True if one rendered Gmail term matches the message. Criteria within a term are ANDed. */
+/** The words and quoted phrases of one criterion's value, quotes removed: `"dev+ops" example.com` is a phrase and a word. */
+const words = value => [...value.matchAll(/"([^"]*)"|[^\s"]+/g)].map(([match, phrase]) => (phrase === undefined ? { text: match } : { phrase: true, text: phrase }))
+
+/** True if one rendered Gmail term matches the message. Criteria within a term are ANDed, and so are the words of one criterion. */
 const termMatches = (term, message) => {
-  const criteria = [...term.matchAll(/(from|subject|list):\(([^)]*)\)/g)]
+  const criteria = [...term.matchAll(/(from|subject|list):\(((?:"[^"]*"|[^")])*)\)/g)]
   if (criteria.length === 0) return false
-  return criteria.every(([, field, value]) => {
-    if (field === 'from') return value.split(/\s+/).every(word => tokenMatch(message.from, word))
-    if (field === 'list') return message.list.toLowerCase().includes(value.toLowerCase())
-    const phrase = value.match(/^"(.*)"$/)
-    return phrase ? message.subject.toLowerCase().includes(phrase[1].toLowerCase()) : tokenMatch(message.subject, value)
-  })
+  return criteria.every(([, field, value]) =>
+    words(value).every(({ phrase, text }) => {
+      if (field === 'from') return tokenMatch(message.from, text)
+      if (field === 'list') return message.list.toLowerCase().includes(text.toLowerCase())
+      return phrase ? message.subject.toLowerCase().includes(text.toLowerCase()) : tokenMatch(message.subject, text)
+    }),
+  )
 }
 
 /** Normalizes a condition to its criteria, since a bare string condition is shorthand for a `from` glob. */
