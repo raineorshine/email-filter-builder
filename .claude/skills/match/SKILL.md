@@ -21,9 +21,10 @@ Needed: **from address**, **subject**, and — if the message is a mailing list 
 - The subject as sent, not the client's truncation with `…`.
 - Note every label chip on the message, and whether the message is in Inbox, Archive or Trash.
 
-**If the address or full subject is not legible, fetch it — do not guess.** Query the Gmail MCP
-(`search_threads` on the subject, then `get_message`) and read `From`, `Subject` and `List-Id` off
-the headers. Say which fields came from the screenshot and which from the API.
+**If the address or full subject is not legible, fetch it — do not guess.** `search_threads` on the
+subject returns each hit's sender address and full subject; a `List-Id` needs `get_message` with
+`RAW`, the only format that carries headers. Say which fields came from the screenshot and which
+from the API.
 
 ### 2. Run the matcher
 

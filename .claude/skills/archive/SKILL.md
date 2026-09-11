@@ -38,8 +38,8 @@ If the screenshot shows several messages and nothing singles one out — an open
 row, a typed sender — ask which, with 🚙 set first.
 
 Survey the sender with `search_threads` on `from:<address>` (the domain, when the local part
-rotates), `pageSize` 50. The default view carries each message's sender and subject, so this needs
-no `get_message`. Page back until a full page adds no new kind; kinds the sender has stopped sending
+rotates), `pageSize` 50. The default view carries each message's sender address and subject, so
+this needs no `get_message`. Page back until a full page adds no new kind; kinds the sender has stopped sending
 do not matter. The message's own kind is the family, and every other kind must keep going where it
 goes today — so the fragment follows filter step 2's rule with one more constraint: no other kind
 may contain it.

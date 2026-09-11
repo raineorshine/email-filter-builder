@@ -30,9 +30,10 @@ A rule needs real header values, not the description's paraphrase of them.
 - **List-Id**, if it is mailing-list mail.
 
 If the user gave a screenshot, read it as the `match` skill does (step 1 there). Otherwise, or if a
-value is not legible, fetch examples with the Gmail MCP: `search_threads` for the sender or subject,
-then `get_message` on a few hits and read `From`, `Subject`, `List-Id` off the headers. **Look at
-several messages, not one** — the family's real variation decides the shape of the rule.
+value is not legible, fetch examples with the Gmail MCP: `search_threads` for the sender or subject
+returns each hit's sender address and subject, and `get_message` with `RAW` — the only format that
+carries headers — shows a `List-Id`. **Look at several messages, not one** — the family's real
+variation decides the shape of the rule.
 
 ### 2. Infer the rule
 
