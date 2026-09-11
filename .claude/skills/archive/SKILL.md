@@ -38,11 +38,10 @@ If the screenshot shows several messages and nothing singles one out — an open
 row, a typed sender — ask which, with 🚙 set first.
 
 Survey the sender with `search_threads` on `from:<address>` (the domain, when the local part
-rotates), `pageSize` 50. The default view carries each message's sender address and subject, so
-this needs no `get_message`. Page back until a full page adds no new kind; kinds the sender has stopped sending
-do not matter. The message's own kind is the family, and every other kind must keep going where it
-goes today — so the fragment follows filter step 2's rule with one more constraint: no other kind
-may contain it.
+rotates), `pageSize` 50, paging back until a full page adds no new kind — kinds the sender has
+stopped sending do not matter. The message's own kind is the family; the other kinds are the
+"sender's other mail" that filter step 2's fragment must not match, and they keep going where they
+go today.
 
 | Family vs. the sender's other kinds                    | Rule                                          |
 | ------------------------------------------------------ | --------------------------------------------- |
@@ -51,9 +50,8 @@ may contain it.
 | No such fragment, and the sender sends no other kind   | sender alone — say so in the report           |
 | No such fragment, and other kinds exist                | not expressible — say so and ask, with 🚙 set |
 
-A List-Id is a header, and of `get_message`'s formats only `RAW` carries headers. Reuse the `from`
-the spec already has for this sender, if it has one (filter step 4's grep finds it), so the
-sender's conditions differ only by subject.
+Reuse the `from` the spec already has for this sender, if it has one (filter step 4's grep finds
+it), so the sender's conditions differ only by subject.
 
 ### 4. Keep every label (filter step 4)
 
@@ -70,14 +68,13 @@ An entry that already archives this mail makes the request a `duplicate`. If the
 the message in the inbox anyway, that is the `match` skill's step 4 — mail older than the filter,
 an unsynced filter, or a `gmail` NO MATCH — not a reason for a second rule.
 
-### 5. Check the rule against real mail (filter step 5)
+### 5. Repeat the account test on the rendered rule (filter step 5)
 
-After the edit, run the `gmail` term the matcher prints for the new condition through
-`search_threads`, back to the oldest date step 3 surveyed (`after:`). Every thread it returns must
-be the family; anything else is mail the filter would archive by mistake — lengthen the fragment
-and check again before syncing. This is Gmail's own engine on real mail, so it covers what the
-survey and the matcher cannot: other addresses a widened `from` reaches, and Gmail's token and
-punctuation rules.
+After the edit, repeat filter step 2's account test on the `gmail` term the matcher prints for the
+new condition, back to the oldest date step 3 surveyed (`after:`). Every thread it returns must be
+the family; anything else is mail the filter would archive by mistake — lengthen the fragment and
+check again before syncing. The rendered term is what the filter will actually run: the glob as the
+renderer translated it, and every address a widened `from` reaches.
 
 ### 6. Report (filter step 7)
 
