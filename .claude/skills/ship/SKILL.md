@@ -33,7 +33,7 @@ This is the whole gate: there is no lint or type check in this repo.
 
 ### 2. Commit all staged and unstaged changes
 
-Generate a commit message from the diff. Use an imperative, sentence-case subject (`Add …`, `Fix …`, `Rename …`, `Remove …`) to match the repo's history. A `type:` prefix is optional and used only occasionally here — plain imperative subjects are the norm. Follow the conventions in `AGENTS.md` (Repo → Git).
+Generate a commit message from the diff. Use an imperative, sentence-case subject (`Add …`, `Fix …`, `Rename …`, `Remove …`) to match the repo's history. A `type:` prefix is optional and used only occasionally here — plain imperative subjects are the norm. Follow the conventions in `AGENTS.md` (Repo → Git). When `learn` is the caller, commit only the files it edited — it lands its learnings alone — and say what was left behind.
 
 ### 3. Rebase on master
 

@@ -48,7 +48,7 @@ ${gmailOutput}
 Each filter pairs `conditions` with `actions`. Conditions are OR'd, and the keys within one condition are ANDed. A bare string is shorthand for `{ from }`.
 
 - `from` — sender address, as a Sieve `:matches` glob (`*@example.com`). Rendered as `address :all :matches "From"` in Sieve and a `from:` token search in Gmail (see [Mapping](#mapping)).
-- `subject` — text the subject contains. Rendered as `header :contains "Subject"` in Sieve and a quoted `subject:` phrase in Gmail.
+- `subject` — text the subject contains. Rendered as `header :contains "Subject"` in Sieve and a `subject:` term in Gmail, quoted as a phrase when it has more than one word or holds query syntax (see [Mapping](#mapping)).
 - `list` — mailing list id, as it appears in the `List-Id` header without the angle brackets (`dev.example.com`). Rendered as `header :contains "List-Id"` in Sieve and Gmail's `list:` operator, which searches the same header.
 - `comment` — ignored by both renderers.
 
