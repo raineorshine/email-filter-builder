@@ -69,7 +69,7 @@ CONFIG="${EMAIL_FILTER_BUILDER_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/email-filt
 - `.gmail-credentials.json` (OAuth desktop-client JSON) and `.gmail-token.json` (refresh + access token, mode 600) — `sync.js`'s credentials.
 - `AGENTS.local.md` — everything the privacy rule keeps out of this file: the account, current filter and label specifics, per-session findings. Read it before touching the accounts; edit it only under the mutex below.
 
-They used to sit at the root of the main checkout. That location now holds symlinks into `$CONFIG`, kept only so sessions started before the move keep working; nothing should reach the files through it. Claude Code refuses Edit/Write to paths under the main checkout from a worktree session, which is why they moved.
+They used to sit at the root of the main checkout. That location now holds symlinks into `$CONFIG`, kept only so sessions started before the move keep working; nothing should reach the files through it. A session reads these instructions once, at start, so moving shared state needs a shim like this for as long as older sessions are live — remove the symlinks once none are. Claude Code refuses Edit/Write to paths under the main checkout from a worktree session, which is why they moved.
 
 ### Editing AGENTS.local.md — always hold the mutex
 

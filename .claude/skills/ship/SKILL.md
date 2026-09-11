@@ -53,7 +53,7 @@ Use a single message that describes the overall diff.
 
 ### 5. Fast-forward merge into master
 
-Use this exactly — it resolves the branch and main-checkout paths (the same `$MAIN` idiom as `AGENTS.md`), so nothing is hardcoded:
+Use this exactly — it resolves the branch and the main checkout (`$MAIN`, the directory holding the shared `.git`), so nothing is hardcoded:
 
 ```bash
 BRANCH=$(git branch --show-current) && MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && git -C "$MAIN" merge --ff-only "$BRANCH"
