@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 const fs = require('fs')
 const path = require('path')
-const filename = process.argv[2] || 'filters.js'
-const filters = require(path.resolve(filename))
+const { filtersFile } = require('./paths')
+const filters = require(filtersFile(process.argv[2]))
 
 const { gmail, outDir, sieve } = require('./index')
 

@@ -91,8 +91,8 @@ guessing, and set 🚙 first. Otherwise proceed; the statement is there so the u
 
 ### 4. Check for duplicates and overlaps
 
-Resolve `MAIN` (`AGENTS.md` → Files outside git) and **re-read `$MAIN/filters.js` now** — it is
-shared across worktrees and may have changed since the session started.
+Resolve `CONFIG` (`AGENTS.md` → Files outside git) and **re-read `$CONFIG/filters.js` now** — it
+is shared across worktrees and may have changed since the session started.
 
 Run every sample message from step 1 through the matcher:
 
@@ -131,12 +131,12 @@ conditions: never change an entry's actions to fix one sender — move that send
 
 ### 5. Edit filters.js
 
-Edit `$MAIN/filters.js` in place (it produces no git diff). Match the file's existing style:
+Edit `$CONFIG/filters.js` in place (it produces no git diff). Match the file's existing style:
 `comment` on a condition where the sender alone does not say what the mail is. Then verify by
 loading, not reading:
 
 ```bash
-node -e 'const f=require(process.argv[1]); console.log(f.length, f.reduce((n,e)=>n+e.conditions.length,0))' "$MAIN/filters.js"
+node -e 'const f=require(process.argv[1]); console.log(f.length, f.reduce((n,e)=>n+e.conditions.length,0))' "$CONFIG/filters.js"
 ```
 
 The condition count should move by exactly what step 4 decided. Re-run the matcher on the samples:
@@ -145,15 +145,15 @@ the intended entry — and only the intended entries — should now match.
 ### 6. Sync
 
 Follow `AGENTS.md` → Gmail → Account and filters, which authorizes applying a clean plan without
-asking. Set 🔍, then dry-run with `--verbose` (worktree credentials:
-`GMAIL_CREDENTIALS_FILE="$MAIN/.gmail-credentials.json" GMAIL_TOKEN_FILE="$MAIN/.gmail-token.json"`).
+asking. Set 🔍, then dry-run: `node src/sync.js --verbose` (the spec and credentials default to
+the config directory).
 
 Audit the plan: every deleted term reappears in a created query under the same label (re-chunking),
 the new terms appear under the intended label, `Labels to create` holds nothing unexpected, no bare
 TLD. If the plan carries changes this edit does not explain, that is pending drift or another
 session's edit — stop and report it rather than applying it along with yours.
 
-A clean plan: set 💾, `node src/sync.js "$MAIN/filters.js" --apply --yes`, then set 🚙 or leave 💾 per
+A clean plan: set 💾, `node src/sync.js --apply --yes`, then set 🚙 or leave 💾 per
 the session-title rules.
 
 ### 7. Report

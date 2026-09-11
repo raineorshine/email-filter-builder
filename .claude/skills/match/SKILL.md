@@ -31,8 +31,8 @@ the headers. Say which fields came from the screenshot and which from the API.
 node .claude/skills/match/match.js --from <address> --subject "<subject>" [--list <list-id>]
 ```
 
-It reads the real spec from the main checkout (`filters.js`, gitignored — see `AGENTS.md` → Repo →
-Files outside git); `--filters <path>` overrides. It prints two verdicts per matching entry, because
+It reads the real spec from the config directory (`filters.js`, outside the repo — see `AGENTS.md`
+→ Repo → Files outside git); `--filters <path>` or `FILTERS_FILE` overrides. It prints two verdicts per matching entry, because
 two engines run the same spec:
 
 - **`spec`** — sieve semantics, what ProtonMail runs: `from` is a case-insensitive glob over the
@@ -82,7 +82,7 @@ The spec is not proof of what is on the account — the account may have drift, 
 
 - **Entry matches but the label is absent:** the filter may never have been synced, or the mail
   predates it (Gmail filters are not retroactive). Confirm with a dry run —
-  `node src/sync.js "$MAIN/filters.js" --verbose` — and check whether that entry's query is in the
+  `node src/sync.js --verbose` — and check whether that entry's query is in the
   create list. Set the session title's 🔍 prefix before any live-account check.
 - **Nothing matches and the mail looks unfiltered:** read the near misses first. A stale `from` is
   the likeliest cause, and it is invisible in the plan a dry run prints — a dead rule is still in

@@ -5,11 +5,12 @@ const path = require('path')
 const readline = require('readline')
 const GmailApi = require('./gmail-api')
 const { Sync } = require('./gmail-sync')
+const { filtersFile } = require('./paths')
 
 const args = process.argv.slice(2)
 const has = flag => args.includes(`--${flag}`)
 const apply = has('apply')
-const filename = args.find(arg => !arg.startsWith('--')) || 'filters.js'
+const filename = filtersFile(args.find(arg => !arg.startsWith('--')))
 
 /** Prompts on the terminal before the first destructive run. --yes skips it; without a terminal to ask, deleting is refused rather than assumed. */
 const confirm = plan => {

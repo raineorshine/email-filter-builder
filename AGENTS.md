@@ -2,21 +2,21 @@
 
 Operational knowledge for agent sessions working on this repo and on the mail accounts it manages. Gleaned from live sessions in 2026-08 and 2026-09; verify anything that may have drifted before relying on it. Claude Code reads this file through `CLAUDE.md`, which only imports it — record learnings here, not there.
 
-**Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — gitignored, at the root of the main checkout (see **Files outside git**).
+**Privacy rule: this repo is public.** Never put the account address, filter counts, label names/IDs, or any content from `filters.js` into committed files (docs, tests, commit messages included). Account-specific details belong in **AGENTS.local.md** — in the config directory outside the repo (see **Files outside git**).
 
 ## Repo
 
 ### What the code does
 
-- `email-filter-builder` generates email filters from `filters.js` (gitignored, personal — see **Files outside git**).
+- `email-filter-builder` generates email filters from `filters.js` (personal, outside the repo — see **Files outside git**).
 - Source lives in `src/`: the library modules, the two CLIs, and their colocated `*.test.js`. The root keeps project tooling and fixtures — `build.js` (README generation) and `filters.sample.js`.
-- `node src/bin.js filters.js` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
-- `node src/sync.js filters.js` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write, `--yes` to skip the delete prompt, `--verbose` to print full queries. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md).
+- `node src/bin.js [filters.js]` writes `out/*.sieve` (ProtonMail, 50k-char chunks) and `out/gmail.xml` (Gmail import file).
+- `node src/sync.js [filters.js]` diffs the spec against the account's live Gmail filters over the API and reconciles them — dry run by default, `--apply` to write, `--yes` to skip the delete prompt, `--verbose` to print full queries. This is the supported way to change Gmail filters; the XML import is a one-shot that duplicates on re-import. Needs a one-time OAuth setup (see README.md).
 - `src/gmail.js` exports `Specs`, the shared conditions-to-filters expansion (OR-merging, 600-char chunking, one label per filter). Both the XML renderer and `sync.js` go through it, so the two formats cannot drift. Change merging semantics there, not in either consumer.
 - `site/` is the small public web page the Gmail OAuth consent screen links to (home page plus privacy policy), deployed separately from the CLI. It exists because Google will not let an app leave Testing status without a reachable home page and privacy policy URL. The contact address is injected from `CONTACT_EMAIL` (a gitignored `.env` locally, a service variable in production) rather than committed, since this repo is public — without it the contact falls back to the GitHub issue tracker. Hosting specifics are in AGENTS.local.md.
 - A `subject` is a substring in sieve and a quoted phrase in Gmail, so it must appear contiguously in the real subject. A family that varies mid-phrase needs one condition per variant — a stop word alone splits it, the way "Invoice is Ready" shares no contiguous fragment with "Invoice Ready" past the first word. Prefer the longest fragment shared by the whole family, and check it against the real subjects rather than one sample.
 - Mapping rules are documented in README.md (Gmail → Mapping). Key invariants: conditions sharing the same actions are OR-merged into `hasTheWord` queries chunked at 600 chars (`maxQueryLength` option); `archive` → skip the inbox (`shouldArchive` in XML, `removeLabelIds: [INBOX]` over the API); `trash` → delete (`shouldTrash` / `addLabelIds: [TRASH]`); one label per Gmail filter (multi-label entries expand); sieve globs become Gmail token search terms — dangling fragments ≤3 chars are dropped, longer ones kept.
-- After renderer changes, audit the planned queries against the real `filters.js` before applying — `node src/sync.js filters.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
+- After renderer changes, audit the planned queries against the real `filters.js` before applying — `node src/sync.js --verbose` is a dry run that prints them. A glob-translation bug once collapsed a `*@foo*.com`-style pattern to `from:(com)` — a trash filter that would have matched nearly all mail. Never let a `from` term reduce to a bare TLD; tests cover the known shapes.
 - `README.md` is generated from `README-template.md` by `npm run build` — edit the template, never the output.
 
 ### Skills
@@ -56,23 +56,27 @@ bite:
 
 ### Files outside git
 
-Personal files live at the root of the **main checkout**, gitignored, so they are absent from worktrees. Reach them by absolute path:
+Personal files live in a per-user config directory outside every git checkout, so each worktree and clone shares one copy and nothing personal can be committed by accident:
 
 ```bash
-MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+CONFIG="${EMAIL_FILTER_BUILDER_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/email-filter-builder}"
 ```
 
-- `filters.js` — the real filter spec. Read and edit it in place from a worktree (edits produce no git diff) and run the tools against it: `node src/bin.js "$MAIN/filters.js"`, `node src/sync.js "$MAIN/filters.js"`.
-- `.gmail-credentials.json` (OAuth desktop-client JSON) and `.gmail-token.json` (refresh + access token, mode 600) — `sync.js`'s credentials. From a worktree, set `GMAIL_CREDENTIALS_FILE="$MAIN/.gmail-credentials.json" GMAIL_TOKEN_FILE="$MAIN/.gmail-token.json"`. Never `git add -A` blind in this public repo.
+`src/paths.js` resolves the same defaults, so the tools need no arguments: `node src/bin.js`, `node src/sync.js` and `match.js` all read `$CONFIG/filters.js` and the credentials beside it. An explicit path argument (or `--filters` for `match.js`) wins, then the env overrides `FILTERS_FILE`, `GMAIL_CREDENTIALS_FILE` and `GMAIL_TOKEN_FILE`.
+
+- `filters.js` — the real filter spec. Read and edit `$CONFIG/filters.js` in place (edits produce no git diff).
+- `.gmail-credentials.json` (OAuth desktop-client JSON) and `.gmail-token.json` (refresh + access token, mode 600) — `sync.js`'s credentials.
 - `AGENTS.local.md` — everything the privacy rule keeps out of this file: the account, current filter and label specifics, per-session findings. Read it before touching the accounts; edit it only under the mutex below.
+
+They used to sit at the root of the main checkout. That location now holds symlinks into `$CONFIG`, kept only so sessions started before the move keep working; nothing should reach the files through it. Claude Code refuses Edit/Write to paths under the main checkout from a worktree session, which is why they moved.
 
 ### Editing AGENTS.local.md — always hold the mutex
 
 Editing it from a worktree is expected, not off-limits. But a dozen-plus worktrees are typically live at once (`git worktree list`), each possibly running its own agent session, and an unlocked read-modify-write silently drops whatever another session wrote in between. `flock` is not installed on macOS, so use `mkdir`, which is atomic on every POSIX filesystem:
 
 ```bash
-MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-LOCK="$MAIN/.git/AGENTS.local.md.lock"
+CONFIG="${EMAIL_FILTER_BUILDER_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/email-filter-builder}"
+LOCK="$CONFIG/.AGENTS.local.md.lock"
 
 # Acquire; reclaim a lock older than 10 min as orphaned.
 until mkdir "$LOCK" 2>/dev/null; do
@@ -81,13 +85,13 @@ until mkdir "$LOCK" 2>/dev/null; do
 done
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
-# Read, modify and write "$MAIN/AGENTS.local.md" here — all inside the lock.
+# Read, modify and write "$CONFIG/AGENTS.local.md" here — all inside the lock.
 ```
 
 - **One Bash call.** Shell state does not persist between tool calls, so acquire, edit and release must be a single invocation or the `trap` fires early and frees the lock mid-edit.
 - **Re-read inside the lock.** Never write back content read before acquiring it.
-- The lock lives under `.git/`, which is shared by every worktree and never committed.
-- **`$MAIN` is for the gitignored files only.** `AGENTS.md` is committed, so it _does_ appear in worktrees — edit the worktree's copy. Reusing the `$MAIN` path for it out of habit writes the change into whatever branch the main checkout has out (usually `master`), where it sits unstaged and easy to miss. Recovering means saving the diff, `git restore`-ing the main checkout, and reapplying in the worktree. The same slip runs code rather than writing it: `cd "$MAIN"` before invoking a committed script — a `.claude/skills/*` helper, anything under `src/` — executes whatever `master` has, not the branch, so an edit under test appears to do nothing. Stay in the worktree and pass `"$MAIN/filters.js"` as an argument, which is what the tools take a path for.
+- The lock sits beside the file it guards, so every worktree and clone contends for the same one. Sessions started before the move used `.git/AGENTS.local.md.lock` in the main checkout; a session still quoting that path is running on the old instructions.
+- **Committed files are edited in the worktree, never in the main checkout.** `AGENTS.md` appears in both; editing the main checkout's copy writes into whatever branch it has out (usually `master`), where it sits unstaged and easy to miss. The same slip runs code rather than writing it: `cd` into the main checkout before invoking a committed script — a `.claude/skills/*` helper, anything under `src/` — executes whatever `master` has, not the branch, so an edit under test appears to do nothing. Stay in the worktree.
 
 ### Git
 
@@ -155,8 +159,8 @@ specific applies. Set it by hand when implementation starts, and replace it when
 to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
 reached.
 
-🔍 and 💾 are the ones that matter to _other_ sessions. `filters.js` is one file in the main
-checkout, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
+🔍 and 💾 are the ones that matter to _other_ sessions. `filters.js` is one file in the config
+directory, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
 early in a turn can be stale by the end of one — re-read before reporting it, and expect a finding
 about a live entry to be someone else's edit rather than a bug. The accounts are one shared slot on
 top of that: a dry run diffs against live state, and an apply changes it, so a

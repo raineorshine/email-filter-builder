@@ -18,17 +18,14 @@
  * matches nothing and reports nothing, so the mail looks simply unfiltered rather than misfiltered.
  */
 
-const { execSync } = require('child_process')
 const path = require('path')
 const { Specs } = require(path.join(__dirname, '..', '..', '..', 'src', 'gmail'))
+const { filtersFile } = require(path.join(__dirname, '..', '..', '..', 'src', 'paths'))
 
 const arg = name => {
   const i = process.argv.indexOf(`--${name}`)
   return i === -1 ? null : process.argv[i + 1]
 }
-
-/** Absolute path of the main checkout, where the gitignored filters.js lives. */
-const mainCheckout = () => path.dirname(execSync('git rev-parse --path-format=absolute --git-common-dir').toString().trim())
 
 /** Converts a sieve :matches glob into a case-insensitive anchored regex. */
 const globToRegExp = glob =>
@@ -137,7 +134,7 @@ if (!message.from && !message.subject && !message.list) {
   process.exit(1)
 }
 
-const filtersPath = path.resolve(arg('filters') || path.join(mainCheckout(), 'filters.js'))
+const filtersPath = filtersFile(arg('filters'))
 const filters = require(filtersPath)
 
 console.log(`Spec:    ${filtersPath} (${filters.length} entries)`)

@@ -5,6 +5,7 @@ const fs = require('fs')
 const http = require('http')
 const path = require('path')
 const { spawn } = require('child_process')
+const paths = require('./paths')
 
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
@@ -95,6 +96,7 @@ const AccessToken = async ({ credentialsFile, tokenFile }) => {
 
   const save = grant => {
     const token = { access_token: grant.access_token, expiry: Date.now() + grant.expires_in * 1000, refresh_token: grant.refresh_token || (cached && cached.refresh_token) }
+    fs.mkdirSync(path.dirname(tokenFile), { recursive: true })
     fs.writeFileSync(tokenFile, JSON.stringify(token, null, 2))
     fs.chmodSync(tokenFile, 0o600)
     return token.access_token
@@ -129,8 +131,8 @@ const request = async (accessToken, method, url, body, attempt = 0) => {
   return text ? JSON.parse(text) : null
 }
 
-/** Creates an authenticated client for the Gmail filter and label endpoints. The credentials and token default to the repo root, overridable via GMAIL_CREDENTIALS_FILE and GMAIL_TOKEN_FILE so a worktree can use the main checkout's gitignored files. */
-const GmailApi = async ({ credentialsFile = process.env.GMAIL_CREDENTIALS_FILE || path.join(__dirname, '..', '.gmail-credentials.json'), tokenFile = process.env.GMAIL_TOKEN_FILE || path.join(__dirname, '..', '.gmail-token.json') } = {}) => {
+/** Creates an authenticated client for the Gmail filter and label endpoints. The credentials and token default to the config directory (see paths.js), overridable via GMAIL_CREDENTIALS_FILE and GMAIL_TOKEN_FILE. */
+const GmailApi = async ({ credentialsFile = paths.credentialsFile(), tokenFile = paths.tokenFile() } = {}) => {
   const accessToken = await AccessToken({ credentialsFile, tokenFile })
   const api = (method, resource, body) => request(accessToken, method, `${BASE}/${resource}`, body)
 

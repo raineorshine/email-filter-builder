@@ -7,8 +7,11 @@ Limited to the specific use case of matching by sender, subject, and mailing lis
 ## Usage
 
 ```sh
-node src/bin.js filters.js
+node src/bin.js            # reads ~/.config/email-filter-builder/filters.js
+node src/bin.js filters.js # or an explicit spec
 ```
+
+The spec defaults to `filters.js` in the config directory — `$EMAIL_FILTER_BUILDER_DIR` if set, else `$XDG_CONFIG_HOME/email-filter-builder`, else `~/.config/email-filter-builder`. It lives outside the repo so that it is shared by every clone and worktree and cannot be committed by accident. A path argument or `FILTERS_FILE` overrides it.
 
 Writes to `./out`:
 
@@ -18,8 +21,8 @@ Writes to `./out`:
 To push the same spec straight to Gmail instead of importing the XML by hand:
 
 ```sh
-node src/sync.js filters.js          # dry run: prints the planned creates and deletes
-node src/sync.js filters.js --apply  # applies them
+node src/sync.js          # dry run: prints the planned creates and deletes
+node src/sync.js --apply  # applies them
 ```
 
 **filters.js:**
@@ -66,8 +69,8 @@ Two ways to get the filters into Gmail. Both render the same criteria and action
 `node src/sync.js` diffs the spec against the account's live filters through the Gmail API and reconciles them. It is idempotent: filters that already match are left alone, so a second run makes zero writes.
 
 ```sh
-node src/sync.js filters.js          # dry run: prints the planned creates and deletes
-node src/sync.js filters.js --apply  # applies them
+node src/sync.js          # dry run: prints the planned creates and deletes
+node src/sync.js --apply  # applies them
 ```
 
 - **Dry run by default.** Nothing is written without `--apply`, and `--apply` prompts before deleting unless `--yes` is passed. `--verbose` prints full queries instead of truncating them.
@@ -82,9 +85,9 @@ node src/sync.js filters.js --apply  # applies them
 1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) and enable the **Gmail API**.
 2. Configure the OAuth consent screen as **External**, and add your own address under **Test users**.
 3. Create an OAuth client of type **Desktop app** and download its JSON.
-4. Save it as `.gmail-credentials.json` in the repo root (gitignored), or set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`.
+4. Save it as `.gmail-credentials.json` in the config directory (`~/.config/email-filter-builder/` by default, beside `filters.js`), or set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`.
 
-The first run opens a browser for consent and caches a refresh token in `.gmail-token.json` (gitignored, mode 600). Both paths can be overridden with `GMAIL_CREDENTIALS_FILE` and `GMAIL_TOKEN_FILE`, which is how a git worktree reuses the main checkout's gitignored files. Scopes requested: `gmail.settings.basic` for the filters, `gmail.labels` to resolve and create labels, and `userinfo.email` so the sync can print which account it is about to modify.
+The first run opens a browser for consent and caches a refresh token in `.gmail-token.json` in the same directory (mode 600). Both paths can be overridden with `GMAIL_CREDENTIALS_FILE` and `GMAIL_TOKEN_FILE`. Scopes requested: `gmail.settings.basic` for the filters, `gmail.labels` to resolve and create labels, and `userinfo.email` so the sync can print which account it is about to modify.
 
 ### XML import
 
