@@ -48,9 +48,21 @@ Choose the narrowest rule that still covers the whole family:
 - **Never** let a `from` reduce to a bare TLD or a token so short Gmail matches half the mailbox.
   Short dangling glob fragments are dropped by the Gmail renderer (`AGENTS.md` → What the code does),
   so `*s@acme.com` means `acme.com` in Gmail.
-- **`subject`** only when the sender also sends mail that must not match. Use the longest fragment
-  shared by every real subject in the family — it must appear contiguously in each. A family that
-  varies mid-phrase needs one condition per variant.
+- **`subject`** only when the sender also sends mail that must not match. It should match a kind
+  of mail, not the message in hand, so it keeps the template's fixed wording and drops everything
+  filled in per message: dates and times, amounts and counts, order, ticket and tracking numbers,
+  and names — of people (the user's own included), documents, products. Strip these even when
+  every sample agrees on one; samples from one week, or all from one colleague, share values the
+  next message will not. Keep a value only when the description singles it out ("the digest for
+  the Berlin team").
+- **Stripping splits the subject into pieces**, and `subject` takes one contiguous fragment: the
+  longest piece, trimmed to whole words, that every real subject in the family contains and the
+  sender's other mail does not. `Your March 2026 usage report` gives `usage report`;
+  `Alice commented on your post` gives `commented on your post`. A family that varies mid-phrase
+  needs one condition per variant.
+- **Test the fragment on the account**: `search_threads` for `from:<sender> subject:"<fragment>"`
+  should find this kind of mail across different dates and names, and none of the sender's other
+  mail.
 - **Label names** must already exist on the account unless the user is asking for a new one. Compare
   against labels used elsewhere in `filters.js` and `list_labels`; near-identical names are a typo,
   not a new label (`Receipt` vs `Receipts`).
@@ -85,9 +97,10 @@ A condition's `comment` goes in the plain-language sentence, not a column. A `du
 the existing entry's actions, not the requested ones, so a mismatch is visible.
 
 Name any inference the description did not force — a glob widened from one address, a subject
-fragment chosen from several samples, a label picked from near matches. If the description left a
-real choice open (which label, archive or not, whole sender or one kind of mail), ask instead of
-guessing, and set 🚙 first. Otherwise proceed; the statement is there so the user can object.
+fragment chosen from several samples, a date or name stripped from a subject, a label picked from
+near matches. If the description left a real choice open (which label, archive or not, whole sender
+or one kind of mail), ask instead of guessing, and set 🚙 first. Otherwise proceed; the statement is
+there so the user can object.
 
 ### 4. Check for duplicates and overlaps
 
