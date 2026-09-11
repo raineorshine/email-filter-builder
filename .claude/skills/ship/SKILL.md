@@ -41,7 +41,7 @@ Generate a commit message from the diff. Use an imperative, sentence-case subjec
 git rebase master
 ```
 
-If the rebase hits conflicts: resolve them, `git add` the resolved files, `git rebase --continue`, and repeat until it completes. Where both sides only added lines, keep both — two sessions appending to the same `AGENTS.md` list collide this way, and taking either side alone drops the other's addition. Where both edited the same lines, prefer the branch's version unless it is clearly wrong. Then re-run the step 1 gates and `git add` whatever they change: a conflict resolution is content they have never seen, and step 4 commits only what is staged.
+If the rebase hits conflicts: resolve them, `git add` the resolved files, `git rebase --continue`, and repeat until it completes. Where both sides only added lines, keep both — two sessions appending to the same `AGENTS.md` list collide this way, and taking either side alone drops the other's addition. Where both edited the same lines, prefer the branch's version unless it is clearly wrong. A conflict can also pair neighbouring lines that each side edited alone — `AGENTS.md` bullets are single long lines, so edits to adjacent bullets collide — and there keep each side's edited line: taking the branch's side of the hunk would revert master's edit. Either way, `git diff master -- <file>` afterwards should show the branch's own changes and nothing else. Then re-run the step 1 gates and `git add` whatever they change: a conflict resolution is content they have never seen, and step 4 commits only what is staged.
 
 ### 4. Squash all commits into one
 
