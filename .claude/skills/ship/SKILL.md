@@ -41,7 +41,7 @@ Generate a commit message from the diff. Use an imperative, sentence-case subjec
 git rebase master
 ```
 
-If the rebase hits conflicts: resolve them (prefer the branch changes unless clearly wrong), `git add` the resolved files, `git rebase --continue`, and repeat until it completes.
+If the rebase hits conflicts: resolve them (prefer the branch changes unless clearly wrong), `git add` the resolved files, `git rebase --continue`, and repeat until it completes. Then re-run the step 1 gates and `git add` whatever they change: a conflict resolution is content they have never seen, and step 4 commits only what is staged.
 
 ### 4. Squash all commits into one
 
