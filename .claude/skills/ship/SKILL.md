@@ -1,6 +1,6 @@
 ---
 name: ship
-description: 'Finish a feature branch in a worktree: run the quality gates (build, test, format), commit, rebase on master, squash, fast-forward merge into master, and push. Use when done with a change in this repo and want it on master without opening a PR.'
+description: 'Finish a feature branch in a worktree: run the quality gates (build, test, format), commit, rebase on master, squash, fast-forward merge into master, push, and extract the session's learnings. Use when done with a change in this repo and want it on master without opening a PR.'
 ---
 
 # Ship (finish feature → merge to master)
@@ -90,6 +90,21 @@ right — leave it. If it failed, or the ship was abandoned before the push, put
 prefix that is true now (`📦 ` for a branch that is done and gated, otherwise whatever stage it
 actually reached). Do not report this step.
 
-### 8. Report completion
+### 8. Extract the learnings
 
-Print `🚀 Shipped`.
+Invoke the `learn` skill. A shipped change is the moment its lessons are worth writing down: the
+branch is landed, nothing is pending, and whatever the session learned about the spec, the accounts
+or the workflow is still in context — an hour later it is in nobody's. This is not optional and the
+user does not have to ask for it; it is the last stage of shipping.
+
+Skip this step when `ship` was itself invoked by `learn` (its procedure ends in a ship), or the two
+would call each other forever. Landing the learnings is that ship's whole job.
+
+`learn` puts `📚 ` on the title, replacing the `🚀 `. Put `🚀 ` back when it finishes: the session
+shipped, and that is the stage it rests at.
+
+If `learn` finds nothing worth recording, that is a normal outcome — say so in one line and move on.
+
+### 9. Report completion
+
+Print `🚀 Shipped` as the last line of the response, after the learn report.
