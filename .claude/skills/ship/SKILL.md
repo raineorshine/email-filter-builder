@@ -46,10 +46,13 @@ If the rebase hits conflicts: resolve them (prefer the branch changes unless cle
 ### 4. Squash all commits into one
 
 ```bash
-git reset --soft master && git commit -m "subject" -m "body"
+git reset --soft "$(git merge-base HEAD master)" && git commit -m "subject" -m "body"
 ```
 
-Use a single message that describes the overall diff.
+Use a single message that describes the overall diff. Reset to the merge base, not to `master`: if
+another worktree lands on `master` while a rebase is paused on a conflict, a soft reset onto the new
+tip keeps a tree without its commits, so the squash would silently revert them. From the merge base,
+step 5 refuses to fast-forward instead, and its retry loop takes the new commits in.
 
 ### 5. Fast-forward merge into master
 
@@ -62,7 +65,7 @@ BRANCH=$(git branch --show-current) && MAIN="$(dirname "$(git rev-parse --path-f
 **If `--ff-only` fails with "Not possible to fast-forward":** another worktree merged into `master` in the meantime, so this branch is no longer a direct descendant. This is expected when running parallel agent sessions and is safe — nothing was merged or lost. Recover by re-integrating on the new `master`:
 
 1. Go back to **step 3** (`git rebase master`) — this replays this branch's single squashed commit onto the updated `master`, surfacing any genuine conflict with the work that landed first. Resolve conflicts the same way.
-2. Redo **step 4** (`git reset --soft master && git commit`) to re-squash onto the new base.
+2. Redo **step 4** (`git reset --soft "$(git merge-base HEAD master)" && git commit`) to re-squash onto the new base.
 3. Retry **step 5**.
 
 Repeat until the fast-forward succeeds. Because `master`'s ref only advances via this atomic `--ff-only` step, at most one worktree wins each round and the others simply rebase and retry — no merge commits, no clobbering.
