@@ -30,7 +30,7 @@ Unless the user's words say otherwise:
 - **Archive only.** The mail skips the inbox; no label is added and nothing is trashed.
 - **Mail like this one.** "These" means the message's own kind, not everything its sender sends.
 - **Sender and subject together**, even when the sender sends nothing else today: the subject keeps
-  a later receipt or security alert from the same address in the inbox.
+  a later security alert from the same address in the inbox.
 
 ### 3. Find the message's kind (filter steps 1–2)
 
