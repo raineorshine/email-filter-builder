@@ -215,6 +215,26 @@ test('escapes XML special characters', () => {
   expect(output).toContain(`<apps:property name='label' value='A&amp;B'/>`)
 })
 
+describe('Gmail search has no escape for a double quote, so a value with one is refused rather than rendered', () => {
+  const render = condition => () => gmail.Specs({ actions: [{ fileinto: ['X'] }], conditions: [condition] })
+
+  test('multi-word subject', () => expect(render({ subject: 'Your "Premium" plan' })).toThrow(`Gmail search has no escape for a double quote, so subject 'Your "Premium" plan' has no Gmail rendering. Use a fragment of it without the quote.`))
+  test('one-word subject', () => expect(render({ subject: '"Premium"' })).toThrow(`subject '"Premium"'`))
+  test('from glob', () => expect(render('"jane doe"@*.example.com')).toThrow(`from '"jane doe"@*.example.com'`))
+  test('list id', () => expect(render({ list: '"Dev" <dev.example.com>' })).toThrow(`list '"Dev" <dev.example.com>'`))
+  test('the XML renderer refuses too, since it shares the expansion', () => expect(() => gmail([{ actions: [{ fileinto: ['X'] }], conditions: [{ subject: 'Your "Premium" plan' }] }], { updated })).toThrow('no escape for a double quote'))
+})
+
+test('backslashes pass through, since Gmail search has no escape character', () => {
+  const filter = { actions: [{ fileinto: ['X'] }], conditions: [{ from: String.raw`jane\doe@example.com`, list: String.raw`dev\ops.example.com`, subject: String.raw`Saved to C:\Plans` }] }
+  expect(gmail.Specs(filter).map(spec => spec.query)).toEqual([String.raw`(from:(jane\doe@example.com) subject:("Saved to C:\Plans") list:(dev\ops.example.com))`])
+})
+
+test('label names are escaped for XML only, since they never enter the query', () => {
+  const output = gmail([{ actions: [{ fileinto: [String.raw`Plans\"Premium"`] }], conditions: ['news@example.com'] }], { updated })
+  expect(output).toContain(String.raw`<apps:property name='label' value='Plans\&quot;Premium&quot;'/>`)
+})
+
 test('updated defaults to the current time', () => {
   const filters = [
     {

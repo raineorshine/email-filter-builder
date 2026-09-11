@@ -217,4 +217,20 @@ describe('Sync', () => {
     await expect(Sync(api, [], options)).rejects.toThrow('refusing to delete all 1 live filters')
     expect(api.state.writes).toEqual([])
   })
+
+  test('a value Gmail search cannot express is refused before any label or filter is written', async () => {
+    const api = FakeApi([stale], labels)
+    await expect(Sync(api, spec([{ subject: 'Your "Premium" plan' }], ['Newsletters']), options)).rejects.toThrow('no escape for a double quote')
+    expect(api.state.writes).toEqual([])
+    expect(api.state.labels).toEqual(labels)
+  })
+
+  test('a label name with quotes and backslashes is created and used verbatim', async () => {
+    const name = String.raw`Plans\"Premium"`
+    const api = FakeApi([], labels)
+    await Sync(api, spec(['a@example.com'], [name]), options)
+    const created = api.state.labels.at(-1)
+    expect(created.name).toBe(name)
+    expect(api.state.created).toEqual([{ action: { addLabelIds: [created.id] }, criteria: { query: 'from:(a@example.com)' } }])
+  })
 })

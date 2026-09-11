@@ -34,12 +34,19 @@ const From = from =>
 /** Converts a sieve :contains subject into a Gmail subject expression. Multi-word subjects are quoted so Gmail matches the phrase rather than the words in any order. */
 const Subject = subject => (/\s/.test(subject) ? `"${subject}"` : subject)
 
+/** Refuses a value Gmail search cannot express. Its syntax has no escape for a double quote: inside a term one opens or closes a phrase, changing what the rest of the merged query matches, so no rendering would match the same mail as the sieve. A backslash passes through as ordinary punctuation, since the syntax has no escape character at all. */
+const searchable = (field, value) => {
+  if (value.includes('"')) throw new Error(`Gmail search has no escape for a double quote, so ${field} '${value}' has no Gmail rendering. Use a fragment of it without the quote.`)
+  return value
+}
+
 /** Renders a single condition as a Gmail search term. Criteria are ANDed, and a term with more than one is parenthesized so it survives OR-merging with other terms. */
 const Term = condition => {
   const { from, list, subject } = typeof condition === 'string' ? { from: condition } : condition
-  const fromQuery = from && From(from)
-  const subjectQuery = subject && Subject(subject)
-  const parts = [fromQuery && `from:(${fromQuery})`, subjectQuery && `subject:(${subjectQuery})`, list && `list:(${list})`].filter(x => x)
+  const fromQuery = from && From(searchable('from', from))
+  const subjectQuery = subject && Subject(searchable('subject', subject))
+  const listQuery = list && searchable('list', list)
+  const parts = [fromQuery && `from:(${fromQuery})`, subjectQuery && `subject:(${subjectQuery})`, listQuery && `list:(${listQuery})`].filter(x => x)
   return parts.length > 1 ? `(${parts.join(' ')})` : parts[0] || null
 }
 

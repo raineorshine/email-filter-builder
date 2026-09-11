@@ -133,6 +133,24 @@ if anyof (
 }`)
 })
 
+describe('quotes and backslashes are escaped in sieve strings', () => {
+  const rule = (condition, fileinto = ['Lists']) => sieve.MultiRule({ actions: [{ fileinto }], conditions: [condition] })
+
+  test('subject', () => expect(rule({ subject: String.raw`Your "Premium" plan, saved to C:\Plans` })).toBe(String.raw`if allof (header :contains "Subject" "Your \"Premium\" plan, saved to C:\\Plans"){fileinto "Lists";}`))
+  test('from glob', () => expect(rule(String.raw`"jane\doe"@*.example.com`)).toBe(String.raw`if allof (address :all :matches "From" "\"jane\\doe\"@*.example.com"){fileinto "Lists";}`))
+  test('list id', () => expect(rule({ list: String.raw`"Dev\Ops" <dev.example.com>` })).toBe(String.raw`if allof (header :contains "List-Id" "\"Dev\\Ops\" <dev.example.com>"){fileinto "Lists";}`))
+  test('label name', () => expect(rule('news@example.com', [String.raw`Plans\"Premium"`])).toBe(String.raw`if allof (address :all :matches "From" "news@example.com"){fileinto "Plans\\\"Premium\"";}`))
+
+  test('every string in the script decodes back to the value in the spec', () => {
+    const condition = { from: String.raw`"jane\doe"@*.example.com`, list: String.raw`"Dev\Ops" <dev.example.com>`, subject: String.raw`Your "Premium" plan, saved to C:\Plans` }
+    const label = String.raw`Plans\"Premium"`
+    const script = sieve.MultiRule({ actions: [{ fileinto: ['archive', label] }], conditions: [condition, 'news@example.com'] })
+    // RFC 5228 §2.4.2: a quoted string ends at the first unescaped quote, and a backslash escapes the character after it.
+    const strings = [...script.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(([, text]) => text.replace(/\\(.)/g, '$1'))
+    expect(strings).toEqual(['Subject', condition.subject, 'From', condition.from, 'List-Id', condition.list, 'From', 'news@example.com', 'archive', label])
+  })
+})
+
 test('allow naked email condition', () => {
   const filters = [
     {

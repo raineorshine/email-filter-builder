@@ -8,12 +8,15 @@ const Action = ({ fileinto }) => fileinto.map(Fileinto).join('')
 
 const Condition = ({ from, list, subject }) => [Subject(subject), From(from), List(list)].filter(x => x).join(', ')
 
-const Fileinto = dest => `fileinto "${dest}";`
+const Fileinto = dest => `fileinto ${Quoted(dest)};`
 
-const From = from => from && `address :all :matches "From" "${from}"`
+const From = from => from && `address :all :matches "From" ${Quoted(from)}`
 
 /** Matches a mailing list by its List-Id header, the same header Gmail's list: operator searches. Substring match, so a bare list id ("dev.example.com") matches the full header value ("Dev <dev.example.com>"). */
-const List = list => list && `header :contains "List-Id" "${list}"`
+const List = list => list && `header :contains "List-Id" ${Quoted(list)}`
+
+/** Renders a value as a sieve quoted string, backslash-escaping the two characters RFC 5228 §2.4.2 reserves inside one: `"` and `\`. This is the string layer only, so a `:matches` glob reaches the match exactly as written, its own `\*` escapes included. */
+const Quoted = value => `"${value.replace(/["\\]/g, '\\$&')}"`
 
 const Rule = ({ actions, condition }) => `if allof (${Condition(typeof condition === 'string' ? { from: condition } : condition)}){${actions.map(Action).join('')}}`
 
@@ -34,7 +37,7 @@ const MultiRule = ({ actions, conditions }) => {
 
 const Sieve = filters => `${Header}${filters.map(MultiRule).join('\n')}`
 
-const Subject = subject => subject && `header :contains "Subject" "${subject}"`
+const Subject = subject => subject && `header :contains "Subject" ${Quoted(subject)}`
 
 module.exports = Sieve
 module.exports.Header = Header

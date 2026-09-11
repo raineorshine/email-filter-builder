@@ -60,7 +60,8 @@ Choose the narrowest rule that still covers the whole family:
   longest piece, trimmed to whole words, that every real subject in the family contains and the
   sender's other mail does not. `Your March 2026 usage report` gives `usage report`;
   `Alice commented on your post` gives `commented on your post`. A family that varies mid-phrase
-  needs one condition per variant.
+  needs one condition per variant. A double quote is a split point too: Gmail search has no escape
+  for one, so the renderer refuses any `subject` that contains it.
 - **Test the fragment on the account**: `search_threads` for `from:<sender> subject:"<fragment>"`
   should find this kind of mail across different dates and names, and none of the sender's other
   mail.

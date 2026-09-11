@@ -58,6 +58,7 @@ Each filter pairs `conditions` with `actions`. Conditions are OR'd, and the keys
 - ProtonMail spec: https://proton.me/support/sieve-advanced-custom-filters
   - Note: ProtonMail does not support the [body](https://datatracker.ietf.org/doc/html/rfc5173) extension.
   - Limited to 50k characters, so many filters are combined into one `anyof` rule and the output is split into 50k chunks.
+- Every value is written as a Sieve quoted string with `"` and `\` backslash-escaped ([RFC 5228 §2.4.2](https://www.rfc-editor.org/rfc/rfc5228#section-2.4.2)), so a quote in a subject or label cannot break the script. Escaping is only the string layer: a `from` glob reaches `:matches` exactly as written.
 - Proton applies every matching filter in list order, and when two filters move a message to different folders [the later one wins](https://proton.me/support/email-inbox-filters). Keep any hand-made folder-moving filter (a catch-all "move to Archive", say) _above_ the generated scripts, or it silently overrides their `trash` rules. The generated scripts contain no `stop`, so every later filter still runs.
 
 ## Gmail
@@ -101,4 +102,5 @@ Import `out/gmail.xml` in Gmail: **Settings → See all settings → Filters and
 - Gmail applies at most one label per filter, so a filter with multiple labels is expanded into one imported filter per label.
 - Sieve `:matches` globs in `from` are translated to Gmail's token-based search: `*@example.com` and `*@*.example.com` become `example.com`, and patterns like `billing.*@example.com` become `billing example.com` (terms are ANDed). A short token fragment left dangling by a wildcard (the `s` of `*s@example.com`) cannot be expressed in Gmail search and is dropped, which errs on the side of matching more broadly; a dangling fragment longer than three characters is kept, since dropping it (the `promoalerts` of `*@promoalerts*.com`) would match far too much.
 - Multi-word subjects are quoted so Gmail matches the exact phrase, mirroring sieve's `:contains`.
+- Gmail search has no escape for a double quote: inside a query one opens or closes a phrase, which changes what the whole merged filter matches. So a `from`, `subject` or `list` containing one is refused with an error rather than rendered — use a fragment without the quote. Backslashes need no escaping in Gmail.
 - Labels are applied by Gmail to incoming mail server-side, so they appear in any Gmail client, including Shortwave.
