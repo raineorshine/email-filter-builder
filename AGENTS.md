@@ -179,6 +179,19 @@ itself — it holds a lock and refuses while another run has it (see **Gmail →
 browser work against the mail UIs, are warned about by the prefix alone, so carry it for those — the
 browser is equally single-occupancy.
 
+Nothing reads the prefix, so it warns only a session that goes looking. Two sessions drove the
+Shortwave UI against one account here, each deleting rules while the other was mid-pass, and the
+first sign of it was a row vanishing that this session had not touched. Before browser work on an
+account, list the live sessions (`mcp__ccd_session_mgmt__list_sessions`) and look for another
+carrying 🔍 or 💾; a row or entry that changes without your having changed it is that, not a bug.
+
+**A message from another session describes the account as it was when written.** One arrived here
+naming rules that had to survive; some had stopped needing to a few minutes earlier, when their
+coverage was added to the spec and synced, and following it would have reverted approved work and
+re-created a rule that did nothing. Re-verify every claim in it against live state — `match.js`
+for coverage, the account for the rest — before acting, and reply with what you found, or the
+sender is left reporting a loss that never happened.
+
 A cloud session never reaches 🔍, 💾 or 🚀. `filters.js` and the OAuth credentials sit outside the
 repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
 and `ship` pushes straight to `master`, where the cloud harness wants a branch and a pull request
@@ -278,6 +291,12 @@ Lessons that held across every web app driven from these sessions — the Gmail,
   under the audit and someone else's edit went to the account along with yours. Copy the spec aside
   before editing it — diffing that copy afterwards is the only way to say which conditions were
   theirs, and the report has to name them.
+- **`Already in sync` says the spec equals the account, never that a prerequisite edit is in the
+  spec.** A task gated on another session's work landing first — an import, a widening — passes
+  that gate while the work is still absent, because the two agree on a spec that never received
+  it. Check the thing itself: run the senders the task names through `match.js` and read the
+  labels back. Here a clean dry run sat over a spec missing most of the senders it was supposed
+  to have, and the import landed mid-task, inverting the finding.
 - **`sync.js` creates any label the spec names**, so a typo or a foreign label name imported from
   another provider silently becomes a new Gmail label. Read the dry run's `Labels to create` line
   before applying, and confirm an unfamiliar name with the user — label vocabularies do not map 1:1
