@@ -75,28 +75,12 @@ hand-made Proton filter, a Shortwave AI filter), rather than approximating it.
 
 ### 3. State the rule back
 
-Draft the rule now; present it once step 4 has classified it, and before step 5 edits anything. Give
-the user the rule as a table, one row per condition, followed by a one-sentence plain-language
-reading of it. The table has at most six columns — Change, Sender, Subject, List-Id, Actions,
-Replaces — and **drops List-Id when no row has one**, as here:
+Draft the rule now; present it once step 4 has classified it, and before step 5 edits anything.
+Render it with the `render-filter` skill, which holds the table and the sentence under it.
 
-| Change | Sender         | Subject         | Actions              | Replaces        |
-| ------ | -------------- | --------------- | -------------------- | --------------- |
-| widen  | `*@acme.com`   | `Weekly digest` | Newsletters, archive | `news@acme.com` |
-| add    | `*@*.acme.com` | `Weekly digest` | Newsletters, archive | —               |
-
-> Mail from Acme whose subject contains "Weekly digest" gets the Newsletters label and skips the inbox.
-
-- **Change** — `add`, `widen`, `update`, `remove`, or `duplicate` (the row already exists; nothing
-  is written), per the classification in step 4.
-- **Sender / Subject / List-Id** — the exact values written to the spec, in backticks, `—` when the
-  condition has no such criterion (List-Id is dropped instead when every row would be `—`). A glob is shown as the glob, not paraphrased.
-- **Actions** — the entry's labels, then its inbox effect: `archive`, `trash`, or nothing when the
-  mail stays in the inbox.
-- **Replaces** — for `widen`/`update`, the condition(s) this row supersedes; `—` otherwise.
-
-A condition's `comment` goes in the plain-language sentence, not a column. A `duplicate` row names
-the existing entry's actions, not the requested ones, so a mismatch is visible.
+**Change** is filled on every row, from step 4's classification; **Replaces** on a `widen` or
+`update`. A `duplicate` row names the existing entry's actions, not the requested ones, so a
+mismatch is visible.
 
 Name any inference the description did not force — a glob widened from one address, a subject
 fragment chosen from several samples, a date or name stripped from a subject, a label picked from

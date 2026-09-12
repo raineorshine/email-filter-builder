@@ -106,6 +106,20 @@ The spec is not proof of what is on the account — the account may have drift, 
 
 ### 5. Report
 
-Per matching entry: the destination actions, the condition that matched, and the matched query.
-Then one line per unexplained label naming its actual source. Do not change `filters.js` or touch an
-account — this skill diagnoses. If a fix is warranted, say what it would be and let the user ask.
+Render the conditions that matched with the `render-filter` skill — one row each, in the same table
+the `filter` skill states a rule in, so a rule reads the same whether it is being written or
+explained. Nothing is being written here, so **Change** and **Replaces** are empty on every row and
+drop out.
+
+The table says what the rule matches and does; it has no column for which entry a row came from, or
+for whether it fired in sieve, in Gmail or neither. Those go in the prose:
+
+- **A `spec`/`gmail` disagreement** is named on the row it belongs to, with which engine matched —
+  it is the finding, not a footnote.
+- **Near misses go in their own table**, under a sentence saying they fired nothing. Their
+  **Actions** column is what the message was meant to get, which is the point of showing them.
+- **Then one line per unexplained label**, naming its actual source from step 3.
+
+Do not change `filters.js` or touch an account — this skill diagnoses. If a fix is warranted, render
+it as its own table with **Change** filled in, say plainly that nothing has been written, and let
+the user ask.
