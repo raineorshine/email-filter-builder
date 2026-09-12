@@ -258,6 +258,10 @@ Lessons that held across every web app driven from these sessions — the Gmail,
   live first is what separates your change's effect from what was already pending. The baseline
   goes stale as easily as the plan does — another session editing the spec or syncing in between
   changes what an apply would do — so audit the plan you are about to apply, not an earlier one.
+  The apply prints its own delete/create counts: when they exceed the dry run's, the spec moved
+  under the audit and someone else's edit went to the account along with yours. Copy the spec aside
+  before editing it — diffing that copy afterwards is the only way to say which conditions were
+  theirs, and the report has to name them.
 - **`sync.js` creates any label the spec names**, so a typo or a foreign label name imported from
   another provider silently becomes a new Gmail label. Read the dry run's `Labels to create` line
   before applying, and confirm an unfamiliar name with the user — label vocabularies do not map 1:1

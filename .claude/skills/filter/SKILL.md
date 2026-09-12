@@ -46,6 +46,12 @@ Choose the narrowest rule that still covers the whole family:
 - **`from` shape.** Exact address for a person, or for a consumer domain (`gmail.com`, `outlook.com`).
   `*@domain` for a company whose every sender should be treated alike. `*@*.domain` only when mail
   genuinely arrives from rotating subdomains. Rotating local parts (`no-reply-<hash>@`) need a glob.
+- **A processor address that encodes an account id is exact-address material.** Payment and
+  notification intermediaries send every client's mail from one domain, keying the merchant in the
+  local part, so the address identifies the sender as precisely as its own domain would — and a
+  `*@processor` glob would sweep in every unrelated merchant the spec files elsewhere. Keep a
+  `subject` anyway: the same address carries the failure and reminder mail that must stay in the
+  inbox, which a receipt-only fragment excludes.
 - **Never** let a `from` reduce to a bare TLD or a token so short Gmail matches half the mailbox.
   Short dangling glob fragments are dropped by the Gmail renderer (`AGENTS.md` → What the code does),
   so `*s@acme.com` means `acme.com` in Gmail.

@@ -60,7 +60,10 @@ Two shapes are reported, and a stale rule usually shows both:
 A shared label is not always distinctive. A consumer-mail domain, or a subdomain label common to
 many senders' notification hosts, raises a near miss against dozens of unrelated conditions at once.
 Judge by whether the shared label names the sender's organization: a wall of near misses on one
-generic token is noise, not a wall of dead rules.
+generic token is noise, not a wall of dead rules. A label naming a payment or notification
+intermediary is noise by the same test even though it names a real company — the spec holds one
+exact address per merchant there, so its conditions are siblings of each other, not of a rule that
+has gone stale.
 
 Near misses print below the matches in the same `entry[N] → …` form, under their own heading. A
 script reading the output — the bulk coverage check in `AGENTS.md` → Bulk-editing filters.js from a
