@@ -357,6 +357,11 @@ Everything below applies only when a session is forced into `https://mail.google
 - SPA; settings at `/settings/labels`, `/settings/filters`, `/settings/inbox`. A "We're still importing your email" interstitial may appear — click Refresh.
 - Rule-row gear icons are hover-revealed and absent from the accessibility tree: locate them by geometry in JS (element at the same row height, right of the row) and dispatch MouseEvents.
 - The rule dialog is titled "Auto-apply rules for \<Label\>" with ALWAYS APPLY / ALWAYS REMOVE sender lists.
+- **Escape closes the whole settings panel, not the open dialog** — it navigates back to the inbox and re-renders the rule list, so using it to close between rules leaves a loop reading stale rows and firing gear clicks on the wrong ones. Close with the dialog's own control: the first `<button>` inside the overlay.
+- **A long address is ellipsis-truncated in the row text** (`alerts@..ation.example.com`), so matching a row on the full address silently finds nothing while short addresses match fine. Split the shown value on `..` and test the target with `startsWith`/`endsWith`.
+- **The address sits in a different element per sender** — an `<h4>` beside the display name, a `<p>` when the sender has none. Take the row's deepest leaf whose text looks like an address rather than selecting a tag.
+- **Auto-trash rules are not auto-apply rules.** They live in a separate "Blocked senders" section with its own row structure and never appear under Label auto-apply rules, so a deletion pass that walks only the label rows misses them.
+- **Emptying a label group removes its row**, and a rule carrying two labels survives removal from one — it disappears only when its last label goes. So the rule count falls more slowly than the senders removed; count rules, not rows, to tell a failed removal from a partial one.
 - "Create AI filter" (Settings → Filters) did not open its dialog from either a ref click or a coordinate click — no modal rendered either way. Unresolved; budget extra time if a session needs that flow.
 
 ## ProtonMail
