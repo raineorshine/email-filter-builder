@@ -57,6 +57,15 @@ Two shapes are reported, and a stale rule usually shows both:
 - `sibling domain` — the sender shares a distinctive domain label with the message but does not
   match, e.g. `*@acme.co` against `support@mail.acme.com`.
 
+A shared label is not always distinctive. A consumer-mail domain, or a subdomain label common to
+many senders' notification hosts, raises a near miss against dozens of unrelated conditions at once.
+Judge by whether the shared label names the sender's organization: a wall of near misses on one
+generic token is noise, not a wall of dead rules.
+
+Near misses print below the matches in the same `entry[N] → …` form, under their own heading. A
+script reading the output — the bulk coverage check in `AGENTS.md` → Bulk-editing filters.js from a
+script is one — counts them as coverage unless it splits on that heading first.
+
 A near miss is a finding, not a footnote: the entry names the labels and actions the message was
 meant to get, so it says what the mail _should_ have done.
 
