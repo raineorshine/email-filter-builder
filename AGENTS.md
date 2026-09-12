@@ -22,7 +22,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 
 ### Skills
 
-- **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`, then invokes `learn`: a landed change is when its lessons are still in context and nothing is pending. `learn` itself ends in a ship, so the skill skips that step when `learn` is the caller. See **Git**.
+- **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`, then invokes `learn`: a landed change is when its lessons are still in context and nothing is pending. `learn` itself ends in a ship, so the skill skips that step when `learn` is the caller. See **Git**. Most sessions here have nothing of their own to land: the spec lives outside git, so one that edited `filters.js` and synced leaves an empty branch and a clean tree. That is the normal outcome, not a sign the work was lost or left uncommitted — there is nothing to gate, squash or merge until `learn` has written something, and its own ship is what gates and lands it. Say the branch was empty rather than hunting for a file to commit.
 - **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so the queries it checks cannot drift; keep it that way. Reading them is what it does reimplement — a small parser of the rendered query — so a renderer change that adds syntax to the output, as quoting did, must teach that parser too, or its gmail verdict reports a mismatch that is not there. Test it with `--filters` pointed at an invented spec holding the new shape. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**. It also reports **near misses**: entries that fire nothing but were written for mail like this, whose `from` no longer reaches the sender. That is how a rule dies when a sender changes domain, and nothing else catches it — a dead rule renders, syncs and diffs as in sync, because the spec and the account agree on a filter that matches nothing. Read them before concluding that mail is simply unfiltered. When scripting over its output rather than reading it, cut that section first (`sed '/near miss/,$d'`): a near miss prints the same `entry[N] → <actions>` header as a real match, so a grep for that header over the whole output credits an entry that fired nothing — and reports a sender as covered when it is not.
 - **`filter`** (`.claude/skills/filter/SKILL.md`) — turns a plain-language request ("archive the digest from X") into one deterministic `filters.js` rule, states it back, dedupes it against the spec with `match`, edits and syncs. Use it for every add or change to a filter: the duplicate and partial-overlap checks are the part that gets skipped by hand.
 - **`archive`** (`.claude/skills/archive/SKILL.md`) — `/filter auto-archive based on sender + subject` as one command: given a screenshot of a message, or its sender and subject, it keys an archive rule on both and runs it through `filter`. It settles what `filter` would otherwise ask — archive only, this kind of mail, sender and subject together — keeps every label the mail already gets, and checks the rule's Gmail query against real mail, so a short subject fragment cannot sweep up the sender's other mail.
@@ -36,7 +36,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 
 ### Bulk-editing filters.js from a script
 
-Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Five things
+Importing a batch of rules from elsewhere means editing `filters.js` programmatically. Six things
 bite:
 
 - **Dedupe by glob match, not string equality.** An existing `*@domain.com` already covers an
@@ -57,6 +57,12 @@ bite:
 - **Splice bottom-up, computing each insertion point immediately before use.** Indices captured for
   every group up front are invalidated by the first splice — including one that rewrites a collapsed
   array in place.
+- **Anchor each edit on text asserted to be unique, and fail the run when it is not.** The spec
+  carries the same address or glob under more than one entry on purpose — a sender that earns two
+  labels is listed in both — so a one-line anchor is ambiguous by design, and a replace-first-match
+  silently edits whichever entry comes first in the file. Widen the anchor to include the
+  neighbouring lines, and assert a match count of exactly one before writing: that assertion, not
+  the reading that preceded it, is what catches a value you had assumed appeared once.
 - **Verify by loading the result, not by reading it**: `require()` the file to catch syntax errors,
   and compare total condition counts before and after against the number you meant to add. Then
   re-run the same coverage check that found the new entries — it should report nothing new.
@@ -292,7 +298,14 @@ Lessons that held across every web app driven from these sessions — the Gmail,
   a label group re-splits that group's 600-char query chunks, so the old chunks are deleted and
   replacements created. Do not take this on faith — check that every `from:`/`subject:` term in each
   deleted query reappears in a created query _under the same label_. A term that does not is either a
-  genuine removal or a label move, and is worth resolving before applying.
+  genuine removal or a label move, and is worth resolving before applying. Check it by rendering
+  rather than by reading the plan: pass the pre-edit spec and the edited one through `Specs` from
+  `src/gmail.js`, split each query into terms the way `splitTerms` in `.claude/skills/match/match.js`
+  does — on the top-level separators only, ignoring the ones inside parentheses or a quoted phrase —
+  and diff the resulting term multisets keyed by label-plus-inbox-effect. A plan of dozens of deletes
+  and creates then reduces to the few terms that actually moved, and everything it does not name is
+  re-chunking. This needs a copy of the spec from before the edit, and the spec is not in git — so
+  take one before editing, not after.
 - **A plan lists only the deletes and creates, never the filters it leaves alone.** So auditing the
   plan — for the bare-TLD hazard in **What the code does**, or anything else — says nothing about
   the untouched majority still live on the account. Audit the rendered spec, not the plan, when the
