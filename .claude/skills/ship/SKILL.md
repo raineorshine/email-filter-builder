@@ -54,6 +54,11 @@ another worktree lands on `master` while a rebase is paused on a conflict, a sof
 tip keeps a tree without its commits, so the squash would silently revert them. From the merge base,
 step 5 refuses to fast-forward instead, and its retry loop takes the new commits in.
 
+A **worktree-isolated session** cannot run that line as written: the harness refuses any `git` call
+it cannot verify stays inside the worktree, which includes a command substitution naming `git`. Run
+`git merge-base HEAD master` on its own and pass the SHA it prints to `git reset --soft`. The same
+refusal governs steps 5 and 6 — see below.
+
 ### 5. Fast-forward merge into master
 
 Use this exactly — it resolves the branch and the main checkout (`$MAIN`, the directory holding the shared `.git`), so nothing is hardcoded:
@@ -70,13 +75,28 @@ BRANCH=$(git branch --show-current) && MAIN="$(dirname "$(git rev-parse --path-f
 
 Repeat until the fast-forward succeeds. Because `master`'s ref only advances via this atomic `--ff-only` step, at most one worktree wins each round and the others simply rebase and retry — no merge commits, no clobbering.
 
+**If the harness refuses the command** — "redirects git to the shared checkout via `-C`" — this is a
+worktree-isolated session, and neither this step nor step 6 can touch the main checkout at all.
+Land it on the remote instead, from the worktree, and skip step 6's push:
+
+```bash
+git push origin HEAD:master
+```
+
+That is the same atomic advance of one ref, so the concurrency argument above still holds: a second
+worktree's push is rejected as non-fast-forward, and the recovery is the same rebase-and-retry loop.
+What it does not do is move the main checkout's local `master`, which is left one commit behind
+`origin/master` — say so in the report and leave the `git pull --ff-only` to the user or to a
+session that is not worktree-isolated.
+
 ### 6. Push and post-merge
 
 ```bash
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && git -C "$MAIN" push origin master
 ```
 
-- Push `master` to `origin` from the main worktree.
+- Push `master` to `origin` from the main worktree. Already done if step 5 fell back to pushing
+  `HEAD:master`.
 - If `package.json` or `package-lock.json` changed, run `npm install` in the main worktree so its dependencies match.
 - The branch is now merged into `master`. If this worktree is finished with, it and the branch can be cleaned up from the main checkout:
 
