@@ -317,10 +317,11 @@ Everything below applies only when a session is forced into `https://mail.google
 - **A rule keys on exactly one sender address and nothing else.** `criteria` has no subject or
   list field, so a Shortwave rule can never be narrower than "all mail from this address" — which is
   why they accumulate one per sender and why they translate cleanly into `filters.js` `from` entries.
-- **`threadFlagsToAdd` is a built-in label, not a Gmail one.** A rule adding e.g. `PURCHASES` is
-  driving Shortwave's own label, which wears the same name as a Gmail user label in the picker
-  (**Label namespaces**) and has no Gmail equivalent. Never translate one into a `filters.js` entry.
-  `userLabelsToRemove` is likewise not portable: Gmail filters add labels, they cannot remove them.
+- **`threadFlagsToAdd` drives a built-in label, not a Gmail one.** Its values are upper-case
+  built-in identifiers rather than label ids — Shortwave's own labels, which wear the same names as
+  Gmail user labels in the picker (**Label namespaces**) and have no Gmail equivalent. Never
+  translate one into a `filters.js` entry. `userLabelsToRemove` is likewise not portable: Gmail
+  filters add labels, they cannot remove them.
 - Shortwave cannot manage Gmail filters: it shows a cached count (Settings → Filters → "Gmail filters", refresh link) and links out to Gmail settings for editing.
 - AI filters and the quick-start filters (Needs Action, Cold Outreach, FYI, Travel, Finance, Purchases) are Shortwave-side natural-language classifiers, off unless added.
 
