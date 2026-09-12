@@ -30,10 +30,6 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 - **A worktree runs its branch's copy of every skill.** Skills load from the worktree, so one changed on `master` after the branch was cut runs in its old form — and `master` can move several commits within a single session. Before following a skill, run `git log --oneline HEAD..master -- .claude/skills/<name>`; if it lists anything, follow master's copy (`git show master:.claude/skills/<name>/SKILL.md`). It matters most for `ship`, which would otherwise land the branch by an outdated procedure.
 - **`learn` drafts from session context, where every example is real.** A sender, a subject, a label name, a filter count reached for as an illustration is account content, and the privacy rule keeps all of it out of committed files — which agent files, skill docstrings and commit messages are. Invent the example instead, then run the privacy rule's check on it before committing: the pull toward the concrete case is strongest exactly when writing down what a session just proved.
 - **"Why did this get labeled?" is often not a filter question at all.** Before proposing a spec change, settle which namespace the label belongs to — a Shortwave built-in or auto-apply rule wears the same chip as a Gmail user label and no entry will ever explain it. See **Mail setup → Label namespaces**.
-- **A decision about filters is presented as a table of them.** Which shape to give a rule, what to
-  import, what to delete — lay the affected entries out in the `filter` skill's step 3 table in the
-  response itself, before the question. Option text and previews inside a picker are not a
-  substitute: they are read one at a time, and a filter decision is a comparison across rows.
 
 ### Bulk-editing filters.js from a script
 
@@ -172,10 +168,12 @@ reached.
 directory, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
 early in a turn can be stale by the end of one — re-read before reporting it, and expect a finding
 about a live entry to be someone else's edit rather than a bug. The accounts are one shared slot on
-top of that: a dry run diffs against live state, and an apply changes it, so a
-second session that syncs concurrently audits a plan that is already stale. 💾 in the sidebar is the
-only warning another session gets. Carry it for browser work against the mail UIs too — the browser
-is equally single-occupancy.
+top of that: a dry run diffs against live state, and an apply changes it, so a second session that
+syncs concurrently audits a plan that is already stale. `sync.js --apply` enforces that much for
+itself — it holds a lock and refuses while another run has it (see **Gmail → Account and filters**)
+— but nothing enforces the rest. The stretch between a dry run and the apply it was auditing, and
+browser work against the mail UIs, are warned about by the prefix alone, so carry it for those — the
+browser is equally single-occupancy.
 
 A cloud session never reaches 🔍, 💾 or 🚀. `filters.js` and the OAuth credentials sit outside the
 repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
@@ -189,11 +187,6 @@ it against the real spec.
 - **Shortwave** (app.shortwave.com) is the Gmail client in use. It honors Gmail filters and adds its own layer — AI filters, auto-apply rules, bundles, splits — stored in Shortwave's backend and invisible to Gmail.
 - **ProtonMail** is the source side of the migration: it runs the generated `out/*.sieve` scripts plus hand-made filters and auto-forwards to Gmail.
 - **Division of labor:** keep all deterministic sender/subject→label routing in `filters.js` → Gmail filters (portable, versioned, client-independent). Use Shortwave's layer only for what Gmail cannot express: AI classification, bundles, delivery schedules, splits. Avoid "Always Apply".
-- **Nothing Gmail can express stays Shortwave-only.** A rule that lives in Shortwave is invisible to
-  every other client and dies with the Shortwave account, so "leave it where it is" is not an option
-  to offer — if the spec can say it, it moves to `filters.js`, even when the Shortwave rule works
-  today and moving it changes nothing observable. Only what Gmail genuinely cannot do stays behind:
-  applying a built-in label, or removing a label.
 - Both providers apply **all** matching filters, but Gmail's are unordered and stack their actions, while Proton's run in list order and the last conflicting action wins — see each section.
 
 ### Label namespaces (three things can share one name)
@@ -244,6 +237,7 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - **Apply without asking when the request is clear and the plan is clean.** A request to change how mail is labeled means the live account, not just `filters.js` — edit the spec, dry-run, audit the plan, then `--apply --yes`. Stop and ask only if something unusual turns up: an unfamiliar label to create, a term that vanishes without a replacement, a bare-TLD `from:`, or a delete count the re-chunking does not explain.
 - **Report a completed sync with a `💾 Synced to gmail` line.** It is how the user tells a spec-only edit from one that reached the account.
 - **Never report mail already sitting in the inbox when a filter is added, and never offer to apply one retroactively.** Gmail filters are not retroactive and that is fine: the user runs inbox zero and clears what is already there by hand. Saying a message "stays put" is noise.
+- **`--apply` serializes itself.** It takes a directory lock at `gmail-sync.lock` in the config directory — beside the spec and the credentials, so every worktree and every clone contends for one lock — and refuses while another run holds it, naming that run's worktree, branch and session id so the user knows which chat to go back to. A lock whose process has died is reclaimed automatically; a live holder is never taken from however long it has been there, because the delete confirmation sits inside the lock. **Dry runs take nothing**, so the gap between auditing a plan and applying it is still yours to keep — the spec can change under an audit, and that is what 🔍 in the sidebar is for.
 - The diff is genuinely idempotent: Gmail stores `criteria.query` verbatim and hands it back unchanged, so a dry run immediately after an apply reports zero changes. If a re-run ever shows churn on filters nobody touched, suspect the renderer, not Gmail.
 - **Hand-made filters diff as different even when they mean the same thing.** A rule built in the Gmail UI populates the API's `from`/`to`/`subject` criteria fields; `sync.js` puts everything in `query`. `from:alice@example.com` and `query:"from:(alice@example.com)"` match the same mail but are not equal, so migrating a hand-made rule into `filters.js` always plans as a delete plus a create. That is correct and expected — it is not the renderer misfiring.
 - **A large delete count in a sync plan is usually re-chunking, not lost coverage.** Adding senders to

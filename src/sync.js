@@ -6,6 +6,7 @@ const readline = require('readline')
 const GmailApi = require('./gmail-api')
 const { Sync } = require('./gmail-sync')
 const { filtersFile } = require('./paths')
+const Lock = require('./lock')
 
 const args = process.argv.slice(2)
 const has = flag => args.includes(`--${flag}`)
@@ -32,7 +33,13 @@ const main = async () => {
   console.info(`Account:  ${await api.email()}`)
   console.info(`Spec:     ${path.resolve(filename)} (${filters.length} entries)\n`)
 
-  await Sync(api, filters, { apply, confirm, verbose: has('verbose') })
+  // The account is one shared slot across every worktree. Taken only for an --apply, since a dry run reads it without writing, and after the OAuth flow, so a consent screen waiting on a browser never holds it.
+  const release = apply ? Lock() : null
+  try {
+    await Sync(api, filters, { apply, confirm, verbose: has('verbose') })
+  } finally {
+    if (release) release()
+  }
 }
 
 main().catch(e => {
