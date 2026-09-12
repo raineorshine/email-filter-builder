@@ -23,7 +23,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 ### Skills
 
 - **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`, then invokes `learn`: a landed change is when its lessons are still in context and nothing is pending. `learn` itself ends in a ship, so the skill skips that step when `learn` is the caller. See **Git**.
-- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so the queries it checks cannot drift; keep it that way. Reading them is what it does reimplement — a small parser of the rendered query — so a renderer change that adds syntax to the output, as quoting did, must teach that parser too, or its gmail verdict reports a mismatch that is not there. Test it with `--filters` pointed at an invented spec holding the new shape. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**. It also reports **near misses**: entries that fire nothing but were written for mail like this, whose `from` no longer reaches the sender. That is how a rule dies when a sender changes domain, and nothing else catches it — a dead rule renders, syncs and diffs as in sync, because the spec and the account agree on a filter that matches nothing. Read them before concluding that mail is simply unfiltered.
+- **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so the queries it checks cannot drift; keep it that way. Reading them is what it does reimplement — a small parser of the rendered query — so a renderer change that adds syntax to the output, as quoting did, must teach that parser too, or its gmail verdict reports a mismatch that is not there. Test it with `--filters` pointed at an invented spec holding the new shape. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**. It also reports **near misses**: entries that fire nothing but were written for mail like this, whose `from` no longer reaches the sender. That is how a rule dies when a sender changes domain, and nothing else catches it — a dead rule renders, syncs and diffs as in sync, because the spec and the account agree on a filter that matches nothing. Read them before concluding that mail is simply unfiltered. When scripting over its output rather than reading it, cut that section first (`sed '/near miss/,$d'`): a near miss prints the same `entry[N] → <actions>` header as a real match, so a grep for that header over the whole output credits an entry that fired nothing — and reports a sender as covered when it is not.
 - **`filter`** (`.claude/skills/filter/SKILL.md`) — turns a plain-language request ("archive the digest from X") into one deterministic `filters.js` rule, states it back, dedupes it against the spec with `match`, edits and syncs. Use it for every add or change to a filter: the duplicate and partial-overlap checks are the part that gets skipped by hand.
 - **`archive`** (`.claude/skills/archive/SKILL.md`) — `/filter auto-archive based on sender + subject` as one command: given a screenshot of a message, or its sender and subject, it keys an archive rule on both and runs it through `filter`. It settles what `filter` would otherwise ask — archive only, this kind of mail, sender and subject together — keeps every label the mail already gets, and checks the rule's Gmail query against real mail, so a short subject fragment cannot sweep up the sender's other mail.
 - **`render-filter`** (`.claude/skills/render-filter/SKILL.md`) — the one table every response shows a rule in: six columns (Change, Sender, Subject, List-Id, Actions, Replaces), one row per condition, a plain-language sentence under it, and any column no row uses dropped. `filter` and `match` both render through it, so a rule reads the same whether it is being written or explained, and the columns are a closed set — a verdict, a reason, an entry index goes in the prose around the table, never in a seventh column.
@@ -192,6 +192,12 @@ re-created a rule that did nothing. Re-verify every claim in it against live sta
 for coverage, the account for the rest — before acting, and reply with what you found, or the
 sender is left reporting a loss that never happened.
 
+**Messaging the other session does not stop it.** `send_message` queues behind whatever turn that
+session is mid-way through, so it lands after the next several writes have — one naming the rules
+that had to survive arrived after some were already deleted. Detection is the whole defence, and
+once both sessions are writing there is no safe way to divide the work: stop, and let the user say
+who owns the account.
+
 A cloud session never reaches 🔍, 💾 or 🚀. `filters.js` and the OAuth credentials sit outside the
 repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
 and `ship` pushes straight to `master`, where the cloud harness wants a branch and a pull request
@@ -223,6 +229,13 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - **Click by ref, not by coordinate.** The screenshot frame and the page viewport report different sizes (1028×1176 vs 919×1051 in one session), so coordinate clicks land ~15% off. Use refs from `find`/`read_page`, or dispatch events from JS.
 - **Refs go stale** after any click, scroll, or re-render. Re-run `find` immediately before each click, one mutation per call, and verify state afterwards — JS DOM reads are the most reliable verification. A stale ref opened the wrong Proton filter's Edit dialog twice in one session.
 - **When a ref click does nothing, dispatch MouseEvents** (`mouseover/mousedown/mouseup/click`; Proton modals also need `pointerdown/pointerup`) from `javascript_tool`. Which of the two works is app- and control-specific; the per-app notes say which.
+- **A hover-revealed control needs a real cursor hover, not a dispatched one.** A dispatched
+  `mouseover`/`mouseenter` reaches the page's own handlers but never sets CSS `:hover`, so a control
+  that exists only while its row is hovered is not in the DOM to be clicked or even found. Move the
+  cursor with `computer`'s `hover` on the row, then read the DOM: the control is there for as long as
+  the cursor stays, and a dispatched click on it works from that point. The two techniques split by
+  control, not by app — dispatch for anything click-activated, a real hover first for anything the
+  pointer reveals.
 - **"Cannot access a chrome-extension:// URL of different extension"** wedges `computer` (and in Proton also `javascript_tool`) while `find`/`read_page`/`get_page_text` keep working. In Gmail it means a native dialog is pending; in Proton it happens with no dialog at all. Recovery is the same: close the tab and open a fresh one.
 - **Read the app's own data layer, not its UI.** Before transcribing rows one dialog at a time, try
   the two page-context routes on a logged-in tab: the app's HTTP API carrying the session cookie
@@ -240,7 +253,9 @@ Lessons that held across every web app driven from these sessions — the Gmail,
   on `window`, return only the derived fields you need, and emit the bulk of it in explicit slices.
   The clipboard is not an escape hatch — in a driven tab `navigator.clipboard.writeText` throws
   because the document is not focused. Hash the payload in the page (`crypto.subtle.digest`) and
-  again on the written file; that is what proves the transcribed copy is complete and in order.
+  again on the written file; that is what proves the transcribed copy is complete and in order. The
+  digest trips the same redaction: a hex string returned whole comes back as a marker, so return it
+  in a few slices.
 - **Native `window.confirm()` dialogs cannot be clicked** by any automation path, and overriding `window.confirm` from `javascript_tool` does not work — the tool runs in an isolated world; the page still sees the native function.
 
 ## Gmail
@@ -360,14 +375,30 @@ Everything below applies only when a session is forced into `https://mail.google
   `{ id: { criteria: { senderEmailAddress } }, settings: { userLabelsToAdd, userLabelsToRemove, sharedLabelsToAdd, sharedLabelsToRemove, threadFlagsToAdd, threadFlagsToRemove, inboxVolume, autoTrashMessage } }`.
   Resolve the `{labelId: "gmail/Label_N"}` references against object store `gmail_labels` (`{id, name, color}`).
   `all_settings` also holds `bundling`, `notifications` and `deliverySchedules` by the same route.
+  `autoTrashMessage` and `inboxVolume` are string enums (`'ON'`/`'OFF'`, `'INHERIT'`), so a
+  truthiness test on either reports every rule as set.
 - **A rule keys on exactly one sender address and nothing else.** `criteria` has no subject or
   list field, so a Shortwave rule can never be narrower than "all mail from this address" — which is
   why they accumulate one per sender and why they translate cleanly into `filters.js` `from` entries.
 - **`threadFlagsToAdd` drives a built-in label, not a Gmail one.** Its values are upper-case
   built-in identifiers rather than label ids — Shortwave's own labels, which wear the same names as
-  Gmail user labels in the picker (**Label namespaces**) and have no Gmail equivalent. Never
-  translate one into a `filters.js` entry. `userLabelsToRemove` is likewise not portable: Gmail
-  filters add labels, they cannot remove them.
+  Gmail user labels in the picker (**Label namespaces**) and have no Gmail equivalent. There is no
+  mechanical translation into a `filters.js` entry — the two are different namespaces, and the same
+  name in each is a coincidence, not a mapping. What is available is substitution: naming a Gmail
+  user label to stand in for the built-in, which changes which chip the mail wears and is therefore
+  the user's call, not a conversion an agent performs quietly. `userLabelsToRemove` is not portable
+  at all: Gmail filters add labels, they cannot remove them.
+- **Retiring a rule is port, sync, verify, then delete — in that order.** A rule whose effect no
+  Gmail filter reproduces is not a permanent keep; it is a keep until the spec covers it. Add the
+  condition, apply the sync, confirm with `match.js` that the sender now gets the same outcome, and
+  only then remove the rule. Deleting first opens a window where nothing handles that mail, and a
+  list of "rules that must survive" drawn up before any porting goes stale the moment one is ported
+  — which is how two sessions can each be right about a rule and still disagree.
+- **A rule that removes a label may be removing nothing.** Before treating its deletion as a
+  regression, find what actually applies that label: `match.js` on the sender, and a
+  `from:<sender> label:<name>` search in Gmail against a bare `label:<name>` control, so an empty
+  result is distinguishable from a malformed query. A removal rule can outlive whatever used to
+  apply the label, leaving it with no effect to reproduce.
 - Shortwave cannot manage Gmail filters: it shows a cached count (Settings → Filters → "Gmail filters", refresh link) and links out to Gmail settings for editing.
 - AI filters and the quick-start filters (Needs Action, Cold Outreach, FYI, Travel, Finance, Purchases) are Shortwave-side natural-language classifiers, off unless added.
 
@@ -375,12 +406,21 @@ Everything below applies only when a session is forced into `https://mail.google
 
 - SPA; settings at `/settings/labels`, `/settings/filters`, `/settings/inbox`. A "We're still importing your email" interstitial may appear — click Refresh.
 - Rule-row gear icons are hover-revealed and absent from the accessibility tree: locate them by geometry in JS (element at the same row height, right of the row) and dispatch MouseEvents.
+- The rules list is grouped by label, one row per label with a sender count, so a built-in label and
+  a Gmail user label of the same name show as two identical-looking rows. Tell them apart by the icon
+  and by position — the built-ins sort above the alphabetical run of user labels — and open the dialog
+  to read the sender before removing anything.
 - The rule dialog is titled "Auto-apply rules for \<Label\>" with ALWAYS APPLY / ALWAYS REMOVE sender lists.
 - **Escape closes the whole settings panel, not the open dialog** — it navigates back to the inbox and re-renders the rule list, so using it to close between rules leaves a loop reading stale rows and firing gear clicks on the wrong ones. Close with the dialog's own control: the first `<button>` inside the overlay.
 - **A long address is ellipsis-truncated in the row text** (`alerts@..ation.example.com`), so matching a row on the full address silently finds nothing while short addresses match fine. Split the shown value on `..` and test the target with `startsWith`/`endsWith`.
 - **The address sits in a different element per sender** — an `<h4>` beside the display name, a `<p>` when the sender has none. Take the row's deepest leaf whose text looks like an address rather than selecting a tag.
 - **Auto-trash rules are not auto-apply rules.** They live in a separate "Blocked senders" section with its own row structure and never appear under Label auto-apply rules, so a deletion pass that walks only the label rows misses them.
 - **Emptying a label group removes its row**, and a rule carrying two labels survives removal from one — it disappears only when its last label goes. So the rule count falls more slowly than the senders removed; count rules, not rows, to tell a failed removal from a partial one.
+- **The per-sender remove button in the rule dialog** is hover-revealed and, unlike the row gear, does
+  **not** appear from a dispatched hover: hover the sender row with `computer` first, then click the
+  button that materialises (see **Browser automation**). Removal is immediate — no confirmation step,
+  no undo — and the next sender shifts up into the removed one's position, so repeating the same
+  hover-and-click empties a list without re-reading the geometry.
 - "Create AI filter" (Settings → Filters) did not open its dialog from either a ref click or a coordinate click — no modal rendered either way. Unresolved; budget extra time if a session needs that flow.
 
 ## ProtonMail
