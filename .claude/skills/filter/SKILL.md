@@ -120,6 +120,11 @@ Then classify:
 | Near miss (`stale sender`, `sibling domain`)                             | **Update** the stale condition to the sender's new address rather than adding a second one.                       |
 | Partial overlap with different actions                                   | Judgment — see below.                                                                                             |
 
+Several entries can share one action set, and then the choice between them is organizational only:
+`Specs` merges by action set and re-chunks, so which entry holds a condition changes only which
+600-char chunk its terms land in, never the effect. Pick by the section comment above the entry —
+what that group is about — and leave the rendering out of it.
+
 **Partial overlap** is when some of the mail is already handled differently: the new rule is
 `*@acme.com → archive` and an existing condition sends `billing@acme.com` to `Finance`. Gmail applies
 every matching filter and they stack (label + archive both happen; trash hides mail from label
@@ -144,8 +149,12 @@ loading, not reading:
 node -e 'const f=require(process.argv[1]); console.log(f.length, f.reduce((n,e)=>n+e.conditions.length,0))' "$CONFIG/filters.js"
 ```
 
-The condition count should move by exactly what step 4 decided. Re-run the matcher on the samples:
-the intended entry — and only the intended entries — should now match.
+The condition count should move by exactly what step 4 decided. A count that moved by more than you
+added is another session's edit to the shared spec, not a misfire of yours — name it and leave it
+alone, per `AGENTS.md` → Gmail → Account and filters.
+
+Re-run the matcher on the samples: the intended entry — and only the intended entries — should now
+match.
 
 ### 6. Sync
 

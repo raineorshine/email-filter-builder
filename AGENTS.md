@@ -71,7 +71,7 @@ CONFIG="${EMAIL_FILTER_BUILDER_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/email-filt
 
 `src/paths.js` resolves the same defaults, so the tools need no arguments: `node src/bin.js`, `node src/sync.js` and `match.js` all read `$CONFIG/filters.js` and the credentials beside it. An explicit path argument (or `--filters` for `match.js`) wins, then the env overrides `FILTERS_FILE`, `GMAIL_CREDENTIALS_FILE` and `GMAIL_TOKEN_FILE`.
 
-- `filters.js` — the real filter spec. Read and edit `$CONFIG/filters.js` in place (edits produce no git diff). It is JavaScript, not data: a grep answers whether a word appears, but what the values contain — any quote, paren or leading `-` — needs the file `require`d, since the source also holds string delimiters, escapes and comments.
+- `filters.js` — the real filter spec. Read and edit `$CONFIG/filters.js` in place (edits produce no git diff). It is JavaScript, not data: a grep answers whether a word appears, but what the values contain — any quote, paren or leading `-` — needs the file `require`d, since the source also holds string delimiters, escapes and comments. Its preamble states the semantics the whole file is written against — which client's ordering rules the entries assume, and that the ordering comments left in the file from the ProtonMail era no longer bind. Read it before reasoning about where an entry sits.
 - `.gmail-credentials.json` (OAuth desktop-client JSON) and `.gmail-token.json` (refresh + access token, mode 600) — `sync.js`'s credentials.
 - `AGENTS.local.md` — everything the privacy rule keeps out of this file: the account, current filter and label specifics, per-session findings. Read it before touching the accounts; edit it only under the mutex below.
 
@@ -242,6 +242,22 @@ Lessons that held across every web app driven from these sessions — the Gmail,
 - **Report a completed sync with a `💾 Synced to gmail` line.** It is how the user tells a spec-only edit from one that reached the account.
 - **Never report mail already sitting in the inbox when a filter is added, and never offer to apply one retroactively.** Gmail filters are not retroactive and that is fine: the user runs inbox zero and clears what is already there by hand. Saying a message "stays put" is noise.
 - **`--apply` serializes itself.** It takes a directory lock at `gmail-sync.lock` in the config directory — beside the spec and the credentials, so every worktree and every clone contends for one lock — and refuses while another run holds it, naming that run's worktree, branch and session id so the user knows which chat to go back to. A lock whose process has died is reclaimed automatically; a live holder is never taken from however long it has been there, because the delete confirmation sits inside the lock. **Dry runs take nothing**, so the gap between auditing a plan and applying it is still yours to keep — the spec can change under an audit, and that is what 🔍 in the sidebar is for.
+- **The lock protects the account, not your edit.** It serializes applies; it does nothing about the
+  spec each one reads. So the collision **Dry-run the previous spec before applying an edit**
+  describes also runs the other way: your edit can reach the account inside someone else's apply
+  before you have dry-run it once, which is how a rule went live here. Keep the stretch between
+  editing the spec and applying it short, and expect an account already ahead of your own apply.
+- **A dry run reporting `Already in sync` straight after your own edit means the edit is already
+  live.** It prints exactly what a no-op edit prints, and the counts line cannot tell the two apart.
+  Read the live filters back for the terms you just added — it needs no lock and no plan:
+
+  ```bash
+  node -e 'require("./src/gmail-api")().then(api => api.listFilters()).then(fs => fs.filter(f => /<your term>/.test(f.criteria.query || "")).forEach(f => console.log(f.criteria.query, JSON.stringify(f.action))))'
+  ```
+
+  Then report what is live rather than what you ran: `💾 Synced to gmail` is still true, but say
+  whose apply carried it, since that run was landing its own change at the same time.
+
 - The diff is genuinely idempotent: Gmail stores `criteria.query` verbatim and hands it back unchanged, so a dry run immediately after an apply reports zero changes. If a re-run ever shows churn on filters nobody touched, suspect the renderer, not Gmail.
 - **Hand-made filters diff as different even when they mean the same thing.** A rule built in the Gmail UI populates the API's `from`/`to`/`subject` criteria fields; `sync.js` puts everything in `query`. `from:alice@example.com` and `query:"from:(alice@example.com)"` match the same mail but are not equal, so migrating a hand-made rule into `filters.js` always plans as a delete plus a create. That is correct and expected — it is not the renderer misfiring.
 - **A large delete count in a sync plan is usually re-chunking, not lost coverage.** Adding senders to
