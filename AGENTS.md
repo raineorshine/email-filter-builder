@@ -30,6 +30,10 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 - **A worktree runs its branch's copy of every skill.** Skills load from the worktree, so one changed on `master` after the branch was cut runs in its old form — and `master` can move several commits within a single session. Before following a skill, run `git log --oneline HEAD..master -- .claude/skills/<name>`; if it lists anything, follow master's copy (`git show master:.claude/skills/<name>/SKILL.md`). It matters most for `ship`, which would otherwise land the branch by an outdated procedure.
 - **`learn` drafts from session context, where every example is real.** A sender, a subject, a label name, a filter count reached for as an illustration is account content, and the privacy rule keeps all of it out of committed files — which agent files, skill docstrings and commit messages are. Invent the example instead, then run the privacy rule's check on it before committing: the pull toward the concrete case is strongest exactly when writing down what a session just proved.
 - **"Why did this get labeled?" is often not a filter question at all.** Before proposing a spec change, settle which namespace the label belongs to — a Shortwave built-in or auto-apply rule wears the same chip as a Gmail user label and no entry will ever explain it. See **Mail setup → Label namespaces**.
+- **A decision about filters is presented as a table of them.** Which shape to give a rule, what to
+  import, what to delete — lay the affected entries out in the `filter` skill's step 3 table in the
+  response itself, before the question. Option text and previews inside a picker are not a
+  substitute: they are read one at a time, and a filter decision is a comparison across rows.
 
 ### Bulk-editing filters.js from a script
 
@@ -185,6 +189,11 @@ it against the real spec.
 - **Shortwave** (app.shortwave.com) is the Gmail client in use. It honors Gmail filters and adds its own layer — AI filters, auto-apply rules, bundles, splits — stored in Shortwave's backend and invisible to Gmail.
 - **ProtonMail** is the source side of the migration: it runs the generated `out/*.sieve` scripts plus hand-made filters and auto-forwards to Gmail.
 - **Division of labor:** keep all deterministic sender/subject→label routing in `filters.js` → Gmail filters (portable, versioned, client-independent). Use Shortwave's layer only for what Gmail cannot express: AI classification, bundles, delivery schedules, splits. Avoid "Always Apply".
+- **Nothing Gmail can express stays Shortwave-only.** A rule that lives in Shortwave is invisible to
+  every other client and dies with the Shortwave account, so "leave it where it is" is not an option
+  to offer — if the spec can say it, it moves to `filters.js`, even when the Shortwave rule works
+  today and moving it changes nothing observable. Only what Gmail genuinely cannot do stays behind:
+  applying a built-in label, or removing a label.
 - Both providers apply **all** matching filters, but Gmail's are unordered and stack their actions, while Proton's run in list order and the last conflicting action wins — see each section.
 
 ### Label namespaces (three things can share one name)
