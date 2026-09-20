@@ -139,6 +139,7 @@ work is landed.
 | `📦 `  | done on the branch — gated and shippable without re-running anything                                      |
 | `🚀 `  | shipping to `master`, or shipped                                                                          |
 | `🚙 `  | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
+| `⏲️ `  | waiting on a task scheduled for later — nothing to do until it fires                                     |
 | `🪦 `  | dead end — kept for the findings, not to resume                                                           |
 | `📚 `  | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
 
@@ -173,6 +174,11 @@ nothing is in flight.
 specific applies. Set it by hand when implementation starts, and replace it when control goes back
 to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
 reached.
+
+⏲️ is the clock's version of a park: a task scheduled for later — a wake-up, a cron run, a
+routine — with nothing to do until it fires. 🚙 takes precedence where the same response also needs
+the user, since a person can act and the clock cannot, and 🔍 and 💾 outrank either, for the same
+reason they outrank a park — the warning to other sessions comes first.
 
 🔍 and 💾 are the ones that matter to _other_ sessions. `filters.js` is one file in the config
 directory, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
