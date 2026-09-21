@@ -9,13 +9,12 @@ Solo-developer workflow for this repo. Take the current feature branch (usually 
 
 ## Procedure
 
-### 0. Prefix the session title with 🚀
+### 0. Leave the title alone
 
-Read the session's title (`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a
-`🚀 ` prefix (`mcp__ccd_session_mgmt__set_session_title`), replacing any existing lifecycle prefix
-rather than stacking — a shipping session was usually `📦 ` a moment ago. Do this **now**, before any
-of the work: the sidebar should say what the session is doing while it is doing it. Step 7 puts the
-title back if the ship does not land. Do not report either. See `AGENTS.md` (Repo → Session titles).
+`🚀 ` means shipped, and nothing is shipped until the push in step 6 lands — a title claiming it
+earlier is wrong for the whole ship, and stays wrong if the ship falls over. A shipping session keeps
+whatever is true meanwhile, usually `📦 `. Step 6 sets it once the push succeeds. Do not report this.
+See `AGENTS.md` (Repo → Session titles).
 
 ### 1. Quality gates (must pass before committing)
 
@@ -106,12 +105,15 @@ MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && 
 
   Only do this when the user confirms the worktree is no longer needed.
 
-### 7. Correct the title if the ship did not land
+### 7. Put `🚀 ` on the title
 
-The push in step 6 is what counts as shipped. If it succeeded, the `🚀 ` from step 0 is already
-right — leave it. If it failed, or the ship was abandoned before the push, put the title back to the
-prefix that is true now (`📦 ` for a branch that is done and gated, otherwise whatever stage it
-actually reached). Do not report this step.
+**Once the push in step 6 succeeds, and not before,** read the session's title
+(`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a `🚀 ` prefix
+(`mcp__ccd_session_mgmt__set_session_title`), replacing the `📦 ` rather than stacking. It stays
+through the report and after it, until the session starts something else; never clear it to leave a
+bare title. If the ship never got that far, no `🚀 ` went on and there is nothing to undo — check the
+title still says what is true now (`📦 ` for a gated branch, `🚙 ` if it waits on the user) and
+correct it if not. Do not report this.
 
 ### 8. Extract the learnings
 
@@ -123,7 +125,8 @@ user does not have to ask for it; it is the last stage of shipping.
 Skip this step when `ship` was itself invoked by `learn` (its procedure ends in a ship), or the two
 would call each other forever. Landing the learnings is that ship's whole job.
 
-`learn` puts `📚 ` on the title, replacing the `🚀 `. Put `🚀 ` back when it finishes: the session
+Put `📚 ` on the title as you invoke it — the user-level `learn` sets none itself — replacing the
+`🚀 `, and put `🚀 ` back when it finishes: the session
 shipped, and that is the stage it rests at.
 
 If `learn` finds nothing worth recording, that is a normal outcome — say so in one line and move on.

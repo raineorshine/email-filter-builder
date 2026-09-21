@@ -23,6 +23,7 @@ Operational knowledge for agent sessions working on this repo and on the mail ac
 ### Skills
 
 - **`ship`** (`.claude/skills/ship/SKILL.md`) — gates, squashes and fast-forwards a worktree branch onto `master`, then invokes `learn`: a landed change is when its lessons are still in context and nothing is pending. `learn` itself ends in a ship, so the skill skips that step when `learn` is the caller. See **Git**. Most sessions here have nothing of their own to land: the spec lives outside git, so one that edited `filters.js` and synced leaves an empty branch and a clean tree. That is the normal outcome, not a sign the work was lost or left uncommitted — there is nothing to gate, squash or merge until `learn` has written something, and its own ship is what gates and lands it. Say the branch was empty rather than hunting for a file to commit.
+- **`sync`** (`.claude/skills/sync/SKILL.md`) — the dry run and the apply as one operation, and the owner of `🔍 ` and `💾 `. `filter` and `archive` sync through it rather than calling `sync.js`, so the prefixes go on wherever a sync happens; the lock `--apply` takes does not cover the dry run, so the plan is stale the moment another session applies.
 - **`match`** (`.claude/skills/match/SKILL.md`) — given a screenshot of one message (or its from/subject/List-Id), reports which `filters.js` entries match and why. Use it instead of reading the spec by hand: it evaluates both sieve semantics and the rendered Gmail query, and a disagreement between the two is the finding — the live Gmail filter matching mail the sieve glob would not is exactly the glob-translation hazard above. Its helper reuses `Specs` from `src/gmail.js` rather than reimplementing the rendering, so the queries it checks cannot drift; keep it that way. Reading them is what it does reimplement — a small parser of the rendered query — so a renderer change that adds syntax to the output, as quoting did, must teach that parser too, or its gmail verdict reports a mismatch that is not there. Test it with `--filters` pointed at an invented spec holding the new shape. It takes `--from` alone, so it doubles as the bulk coverage check when importing senders from another provider — see **Bulk-editing filters.js from a script**. It also reports **near misses**: entries that fire nothing but were written for mail like this, whose `from` no longer reaches the sender. That is how a rule dies when a sender changes domain, and nothing else catches it — a dead rule renders, syncs and diffs as in sync, because the spec and the account agree on a filter that matches nothing. Read them before concluding that mail is simply unfiltered. When scripting over its output rather than reading it, cut that section first (`sed '/near miss/,$d'`): a near miss prints the same `entry[N] → <actions>` header as a real match, so a grep for that header over the whole output credits an entry that fired nothing — and reports a sender as covered when it is not.
 - **`filter`** (`.claude/skills/filter/SKILL.md`) — turns a plain-language request ("archive the digest from X") into one deterministic `filters.js` rule, states it back, dedupes it against the spec with `match`, edits and syncs. Use it for every add or change to a filter: the duplicate and partial-overlap checks are the part that gets skipped by hand.
 - **`archive`** (`.claude/skills/archive/SKILL.md`) — `/filter auto-archive based on sender + subject` as one command: given a screenshot of a message, or its sender and subject, it keys an archive rule on both and runs it through `filter`. It settles what `filter` would otherwise ask — archive only, this kind of mail, sender and subject together — keeps every label the mail already gets, and checks the rule's Gmail query against real mail, so a short subject fragment cannot sweep up the sender's other mail.
@@ -116,118 +117,39 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
 ### Session titles
 
-The chat sidebar shows a status dot (running / awaiting input / idle) and a branch glyph for
-worktree sessions; neither can be set from here — `set_session_title` takes a title string and
-nothing else. So a **single leading emoji on the title** is the only lever, and it is spent on what
-the app cannot know: where the work stands — so that the sidebar answers "which session is mid-sync
-against the account" without opening any of them.
+The prefix glossary arrives in every session from the `emotive` plugin, and nothing here repeats it.
+These are the rows this repo can state exactly.
+
+- `📦 ` means `npm run build && npm test && npm run format` passed, in that order — the build
+  regenerates `README.md` from `README-template.md` so the committed README matches the code, jest
+  runs once, and prettier runs last so its reformatting lands in the commit.
+  `.github/workflows/test.yml` runs the same test after the push, so a failure skipped here surfaces
+  there anyway.
+- `🚀 ` ships to `master`, squashed and fast-forwarded with no PR; `.claude/skills/ship` is that
+  procedure and sets the prefix itself, once the push lands. `📦 ` holds until then.
+- `🚙 ` is what this repo waits on the user for: a decision, a password, or the confirmation click
+  in front of a destructive sync.
+- `🔒 ` and `🔓 ` are inert here — `--apply` takes its own lock and refuses rather than queuing, so
+  there is no queue to announce.
+
+**`💾 ` and `🔍 ` are the pair that matters to other sessions.** `src/sync.js` is a dry run by
+default and `--apply` deletes and creates real Gmail filters, so the two prefixes bracket one
+operation: `🔍 ` while the printed plan is being read, `💾 ` across the apply, set by
+`.claude/skills/sync`, which owns both. Nothing locks the account itself between them — the apply
+takes a lock, the dry run does not — so the plan is stale the moment another session applies. Check
+the sidebar for another `💾 ` before applying, and re-run the dry run if the apply does not follow
+it immediately. A filter that changed without your having changed it is another session, not a bug.
+Driving Gmail, Proton or Shortwave in the browser is `💾 ` too.
 
 **Ask which session this is before renaming one.** `mcp__ccd_session_mgmt__get_session` with
-`"self"` is the only answer, and it changes under a fork: a forked session carries the whole
-transcript, the id it read earlier in that transcript, and a different id of its own, so a rename
-that reuses the remembered one retitles the session it forked _from_ — often the one still mid-sync,
-whose title is therefore the one the sidebar most needs to be true. A fork also starts in the
-worktree of the session it forked from, and nothing stops a branch being checked out there, which
-moves that worktree under the other session's feet; put it back on the branch it was on when the
-work is landed.
+`"self"` is the only answer, and it changes under a fork — a forked session carries the transcript
+and the id read earlier in it, so reusing that id retitles the parent, often the one still mid-sync
+and the one the sidebar most needs to be true.
 
-| Prefix | Means                                                                                                     |
-| ------ | --------------------------------------------------------------------------------------------------------- |
-| `🎨 `  | brainstorming or designing with the user — exploring, sketching, deciding what to build                   |
-| `⏳ `  | implementing — the weakest of them; every other prefix takes precedence                                   |
-| `🔍 `  | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
-| `🔓 `  | about to take that slot — queued or blocked on it — or just released it                                   |
-| `🔒 `  | holding a single slot only one session can use at a time                                                  |
-| `💾 `  | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
-| `📦 `  | done on the branch — gated and shippable without re-running anything                                      |
-| `🚀 `  | shipping to `master`, or shipped                                                                          |
-| `🚙 `  | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
-| `⏲️ `   | waiting on a task scheduled for later — nothing to do until it fires                                      |
-| `🪦 `  | dead end — kept for the findings, not to resume                                                           |
-| `📚 `  | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
-
-`🔒 ` and `🔓 ` are inert here — `--apply` takes its own lock and refuses rather than queuing, and
-the stretches that need a warning are `🔍 `'s and `💾 `'s. They are listed so the vocabulary reads the
-same in every repo.
-
-**A design loop is not a park.** `🎨 ` holds through brainstorming and outranks `🚙 ` while it
-does: the back-and-forth _is_ the stage, so a park prefix on every turn of it marks the session as
-blocked without saying on what. It becomes `🚙 ` once the design is settled and waiting on a
-decision, and `⏳ ` when that decision comes.
-
-**Never mention a prefix in the response** — not what it was set to, not that it was already right,
-not that it was left alone. It is sidebar state; say nothing about it unless asked.
-
-These are **stages, not flags**: exactly one prefix at a time, and setting a new one replaces
-whatever was there. **Every title carries one**, and a prefix comes off only when another takes its
-place — a bare title says nothing about the session, and the sidebar cannot tell it apart from a
-chat that never had a stage at all. A session with nothing left to do keeps the prefix of the last
-stage it reached. The harness names a session, so every session starts without a prefix: putting the
-first one on that inherited title is part of the first response, not something to wait for a stage
-change to prompt. Only one reads cleanly at sidebar width, and 🚀 after 📦 is noise — the later
-stage implies the earlier.
-
-Set a prefix **optimistically** — when the stage _starts_, not when it succeeds — and correct it if
-the stage falls over. A title that only becomes true at the end is blank for the whole stretch the
-sidebar is there to describe. 🚀 is set by the `ship` skill, which sets it before it runs the gates
-and puts it back if the push fails, so it stays true on its own. 📚 goes on the moment the `learn`
-skill is invoked, before anything is read. The rest are set in the response that enters the stage,
-and nothing
-reconciles a title against reality: an abandoned session keeps whatever prefix it had.
-
-**Handing back is itself a stage.** A response that closes on something for the user to do — a
-decision, a password, an OAuth client secret — is a park, and 🚙 goes on before that response, since
-the idle dot cannot tell "waiting on you" from "given up on". Handing over a change to the account
-is the exception: while the user is clicking through a batch of filter deletions in the Gmail UI, or
-confirming a Proton forward, the account is still in flux, so it stays 💾 — the warning to other
-sessions outranks the one to the user, who is already reading the response — and becomes 🚙 once
-nothing is in flight.
-
-⏳ is the weakest of them: every other prefix takes precedence, so it only shows while nothing more
-specific applies. Set it in the response where implementation starts, and replace it when control goes back
-to the user — 🚙 if the work is waiting on them, otherwise whatever stage the branch actually
-reached.
-
-⏲️ is the clock's version of a park: a task scheduled for later — a wake-up, a cron run, a
-routine — with nothing to do until it fires. 🚙 takes precedence where the same response also needs
-the user, since a person can act and the clock cannot, and 🔍 and 💾 outrank either, for the same
-reason they outrank a park — the warning to other sessions comes first.
-
-🔍 and 💾 are the ones that matter to _other_ sessions. `filters.js` is one file in the config
-directory, not a per-worktree copy, so concurrent edits race on the same bytes and a fact read from it
-early in a turn can be stale by the end of one — re-read before reporting it, and expect a finding
-about a live entry to be someone else's edit rather than a bug. The accounts are one shared slot on
-top of that: a dry run diffs against live state, and an apply changes it, so a second session that
-syncs concurrently audits a plan that is already stale. `sync.js --apply` enforces that much for
-itself — it holds a lock and refuses while another run has it (see **Gmail → Account and filters**)
-— but nothing enforces the rest. The stretch between a dry run and the apply it was auditing, and
-browser work against the mail UIs, are warned about by the prefix alone, so carry it for those — the
-browser is equally single-occupancy.
-
-Nothing reads the prefix, so it warns only a session that goes looking. Two sessions drove the
-Shortwave UI against one account here, each deleting rules while the other was mid-pass, and the
-first sign of it was a row vanishing that this session had not touched. Before browser work on an
-account, list the live sessions (`mcp__ccd_session_mgmt__list_sessions`) and look for another
-carrying 🔍 or 💾; a row or entry that changes without your having changed it is that, not a bug.
-
-**A message from another session describes the account as it was when written.** One arrived here
-naming rules that had to survive; some had stopped needing to a few minutes earlier, when their
-coverage was added to the spec and synced, and following it would have reverted approved work and
-re-created a rule that did nothing. Re-verify every claim in it against live state — `match.js`
-for coverage, the account for the rest — before acting, and reply with what you found, or the
-sender is left reporting a loss that never happened.
-
-**Messaging the other session does not stop it.** `send_message` queues behind whatever turn that
-session is mid-way through, so it lands after the next several writes have — one naming the rules
-that had to survive arrived after some were already deleted. Detection is the whole defence, and
-once both sessions are writing there is no safe way to divide the work: stop, and let the user say
-who owns the account.
-
-A cloud session never reaches 🔍, 💾 or 🚀. `filters.js` and the OAuth credentials sit outside the
-repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach the account;
-and `ship` pushes straight to `master`, where the cloud harness wants a branch and a pull request
-instead. It ends at 🚙 — the work is sound and waiting on a session on the user's machine to verify
-it against the real spec.
+A cloud session never reaches `🔍 `, `💾 ` or `🚀 `. `filters.js` and the OAuth credentials sit
+outside the repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach
+the account; and `ship` pushes straight to `master`, where the cloud harness wants a branch and a
+pull request. It ends at `🚙 `, waiting on a session on the user's machine.
 
 ## Mail setup
 
