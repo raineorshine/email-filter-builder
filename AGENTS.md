@@ -133,15 +133,27 @@ work is landed.
 
 | Prefix | Means                                                                                                     |
 | ------ | --------------------------------------------------------------------------------------------------------- |
+| `🎨 `  | brainstorming or designing with the user — exploring, sketching, deciding what to build                   |
 | `⏳ `  | implementing — the weakest of them; every other prefix takes precedence                                   |
 | `🔍 `  | dry run: diffing the spec against a live account, or auditing the plan it printed                         |
+| `🔓 `  | about to take that slot — queued or blocked on it — or just released it                                   |
+| `🔒 `  | holding a single slot only one session can use at a time                                                  |
 | `💾 `  | writing to a live account right now — `sync.js --apply`, or driving Gmail/Proton/Shortwave in the browser |
 | `📦 `  | done on the branch — gated and shippable without re-running anything                                      |
 | `🚀 `  | shipping to `master`, or shipped                                                                          |
 | `🚙 `  | parked: the work is sound and waiting on the user (a decision, a password, a confirmation click)          |
-| `⏲️ `  | waiting on a task scheduled for later — nothing to do until it fires                                     |
+| `⏲️ `   | waiting on a task scheduled for later — nothing to do until it fires                                      |
 | `🪦 `  | dead end — kept for the findings, not to resume                                                           |
 | `📚 `  | extracting learnings into `AGENTS.md`, `AGENTS.local.md` or `README-template.md`                          |
+
+`🔒 ` and `🔓 ` are inert here — `--apply` takes its own lock and refuses rather than queuing, and
+the stretches that need a warning are `🔍 `'s and `💾 `'s. They are listed so the vocabulary reads the
+same in every repo.
+
+**A design loop is not a park.** `🎨 ` holds through brainstorming and outranks `🚙 ` while it
+does: the back-and-forth _is_ the stage, so a park prefix on every turn of it marks the session as
+blocked without saying on what. It becomes `🚙 ` once the design is settled and waiting on a
+decision, and `⏳ ` when that decision comes.
 
 **Never mention a prefix in the response** — not what it was set to, not that it was already right,
 not that it was left alone. It is sidebar state; say nothing about it unless asked.
