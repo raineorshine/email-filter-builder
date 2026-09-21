@@ -141,6 +141,14 @@ the sidebar for another `💾 ` before applying, and re-run the dry run if the a
 it immediately. A filter that changed without your having changed it is another session, not a bug.
 Driving Gmail, Proton or Shortwave in the browser is `💾 ` too.
 
+**`filters.js` is shared but is not `💾 ` work.** It symlinks to
+`~/.config/email-filter-builder/filters.js` (**Files outside git**), so every worktree edits the one
+spec file and an edit in any of them is an edit in all — a rule that appears without your having
+added it is another session, not a bug. Editing it still carries no prefix: `💾 ` warns that the
+*account* is being changed, and a spec edit changes nothing until a sync applies it. Two sessions
+editing the spec is a merge problem, which git and a re-read solve; two sessions applying is a race,
+which is what the prefix is for.
+
 **Ask which session this is before renaming one.** `mcp__ccd_session_mgmt__get_session` with
 `"self"` is the only answer, and it changes under a fork — a forked session carries the transcript
 and the id read earlier in it, so reusing that id retitles the parent, often the one still mid-sync
