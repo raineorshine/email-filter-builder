@@ -1,6 +1,6 @@
 ---
 name: ship
-description: 'Finish a feature branch in a worktree: run the quality gates (build, test, format), commit, rebase on master, squash, fast-forward merge into master, push, and extract the session's learnings. Use when done with a change in this repo and want it on master without opening a PR.'
+description: 'Finish a feature branch in a worktree: run the quality gates (build, test, format), commit, rebase on master, squash, fast-forward merge into master, push, extract the session's learnings, and archive the session. Use when done with a change in this repo and want it on master without opening a PR.'
 ---
 
 # Ship (finish feature → merge to master)
@@ -97,13 +97,6 @@ MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && 
 - Push `master` to `origin` from the main worktree. Already done if step 5 fell back to pushing
   `HEAD:master`.
 - If `package.json` or `package-lock.json` changed, run `npm install` in the main worktree so its dependencies match.
-- The branch is now merged into `master`. If this worktree is finished with, it and the branch can be cleaned up from the main checkout:
-
-  ```bash
-  BRANCH=$(git branch --show-current) && MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && git -C "$MAIN" worktree remove <this-worktree-path> && git -C "$MAIN" branch -d "$BRANCH"
-  ```
-
-  Only do this when the user confirms the worktree is no longer needed.
 
 ### 7. Put `🚀 ` on the title
 
@@ -134,3 +127,19 @@ If `learn` finds nothing worth recording, that is a normal outcome — say so in
 ### 9. Report completion
 
 Print `🚀 Shipped` as the last line of the response, after the learn report.
+
+### 10. Archive the session
+
+Last of all, after `learn` has landed its commit and `🚀 ` is back on the title, archive this session: `mcp__ccd_session_mgmt__archive_session` with `"self"`
+and a reason naming the ship. It is the final tool call of the ship, made in the same response as the completion message and after it — nothing after the
+archive reaches the user. Asking to ship is the agreement to archive; do not ask again.
+
+Skip it when `learn` or `learn-organize` invoked this ship: the session goes on after that ship. A
+ship that fell over short of the push in step 6 is still work in progress and keeps its session.
+
+**The archive refuses while anything of this session is still pending** — a background task, an armed
+waiter, a scheduled wakeup left as a fallback. Stop each one first (a pending wakeup is cancelled with
+`ScheduleWakeup` and `stop: true`); if it still refuses, the user archives from the sidebar.
+
+Archiving removes the session's worktree, if it has one. The branch outlives it, and the session is
+reopened from the Archived list if it is ever needed again.
