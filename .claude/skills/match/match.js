@@ -167,7 +167,7 @@ filters.forEach((filter, i) => {
   if (specHits.length === 0) console.log('  spec   NO MATCH — the live Gmail filter is broader than the sieve glob')
   const seen = new Set()
   gmailHits.forEach(hit => {
-    const line = `  gmail  ${hit.query}${hit.spec.label ? ` → label ${hit.spec.label}` : ''}${hit.spec.archive ? ' + archive' : ''}${hit.spec.trash ? ' + trash' : ''}`
+    const line = `  gmail  ${hit.query}${hit.spec.label ? ` → label ${hit.spec.label}` : ''}${hit.spec.archive ? ' + archive' : ''}${hit.spec.trash ? ' + trash' : ''}${hit.spec.neverSpam ? ' + never spam' : ''}`
     if (seen.has(line)) return
     seen.add(line)
     console.log(line)

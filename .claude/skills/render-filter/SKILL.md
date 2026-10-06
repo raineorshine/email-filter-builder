@@ -30,7 +30,7 @@ Six columns — **Change, Sender, Subject, List-Id, Actions, Replaces** — in t
 - **Sender / Subject / List-Id** — the exact values in the spec, in backticks, `—` when the
   condition has no such criterion. A glob is shown as the glob, not paraphrased.
 - **Actions** — the entry's labels, then its inbox effect: `archive`, `trash`, or nothing when the
-  mail stays in the inbox.
+  mail stays in the inbox; then `never spam` when the entry files into `neverspam`.
 - **Replaces** — the condition(s) this row supersedes; `—` when it supersedes none.
 
 **Drop a column no row uses.** A column where every row would read `—` carries nothing, so it is

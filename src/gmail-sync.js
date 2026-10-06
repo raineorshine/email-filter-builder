@@ -4,6 +4,7 @@ const gmail = require('./gmail')
 
 /** Gmail system label ids used by the action mapping. */
 const INBOX = 'INBOX'
+const SPAM = 'SPAM'
 const TRASH = 'TRASH'
 
 /** Criteria fields of the Gmail filters API. The merged OR-query goes in `query`; the rest are matched on so a hand-made filter using them diffs correctly instead of looking empty. */
@@ -18,12 +19,13 @@ const normalize = value => (Array.isArray(value) ? (value.length > 0 ? [...value
 /** Canonical key for a filter, so a desired filter and a live one compare equal despite key order, label order, or omitted defaults. */
 const Key = ({ action = {}, criteria = {} }) => JSON.stringify([CRITERIA_FIELDS.map(field => normalize(criteria[field])), ACTION_FIELDS.map(field => normalize(action[field]))])
 
-/** Renders the action of a Gmail API filter. There is no archive or trash flag as in the XML format: `archive` removes INBOX and `trash` adds TRASH, alongside the filter's single user label. */
-const Action = ({ archive, labelId, trash }) => {
+/** Renders the action of a Gmail API filter. There is no archive, trash or never-spam flag as in the XML format: `archive` removes INBOX, `trash` adds TRASH and `neverSpam` removes SPAM, alongside the filter's single user label. */
+const Action = ({ archive, labelId, neverSpam, trash }) => {
   const addLabelIds = [trash && TRASH, labelId].filter(x => x)
+  const removeLabelIds = [archive && INBOX, neverSpam && SPAM].filter(x => x)
   return {
     ...(addLabelIds.length > 0 ? { addLabelIds } : {}),
-    ...(archive ? { removeLabelIds: [INBOX] } : {}),
+    ...(removeLabelIds.length > 0 ? { removeLabelIds } : {}),
   }
 }
 
@@ -40,9 +42,9 @@ const LabelNames = (filters, { maxQueryLength } = {}) => [
 /** Builds the desired set of Gmail API filters from the declarative spec, using the same OR-merging and query chunking as the XML renderer. labelIds maps each fileinto destination to its Gmail label id. */
 const DesiredFilters = (filters, labelIds = {}, { maxQueryLength } = {}) =>
   filters.flatMap(filter =>
-    gmail.Specs(filter, maxQueryLength).map(({ archive, label, query, trash }) => {
+    gmail.Specs(filter, maxQueryLength).map(({ archive, label, neverSpam, query, trash }) => {
       if (label && !labelIds[label]) throw new Error(`No Gmail label id for "${label}"`)
-      const action = Action({ archive, labelId: label && labelIds[label], trash })
+      const action = Action({ archive, labelId: label && labelIds[label], neverSpam, trash })
       if (Object.keys(action).length === 0) throw new Error(`Filter has no actions: ${query}`)
       return { action, criteria: { query } }
     }),
@@ -72,7 +74,7 @@ const Plan = (desired, existing) => {
 }
 
 /** Renders a filter's action as a short human phrase. */
-const DescribeAction = ({ addLabelIds = [], removeLabelIds = [] }, labelNames = {}) => [...addLabelIds.map(id => (id === TRASH ? 'trash' : `+${labelNames[id] || id}`)), ...removeLabelIds.map(id => (id === INBOX ? 'skip inbox' : `-${labelNames[id] || id}`))].join(', ') || 'no action'
+const DescribeAction = ({ addLabelIds = [], removeLabelIds = [] }, labelNames = {}) => [...addLabelIds.map(id => (id === TRASH ? 'trash' : `+${labelNames[id] || id}`)), ...removeLabelIds.map(id => (id === INBOX ? 'skip inbox' : id === SPAM ? 'never spam' : `-${labelNames[id] || id}`))].join(', ') || 'no action'
 
 /** Renders a filter as one reviewable line. Long queries are truncated unless verbose, since a full set runs to hundreds of characters each. */
 const Describe = ({ action = {}, criteria = {} }, labelNames, verbose) => {

@@ -8,7 +8,8 @@ const Action = ({ fileinto }) => fileinto.map(Fileinto).join('')
 
 const Condition = ({ from, list, subject }) => [Subject(subject), From(from), List(list)].filter(x => x).join(', ')
 
-const Fileinto = dest => `fileinto ${Quoted(dest)};`
+/** Renders one fileinto destination. `neverspam` renders nothing: Proton has no "never spam" action, and the spam guard in Header returns before any rule runs, so no rule could rescue spam anyway. Gmail alone applies it. */
+const Fileinto = dest => (dest.toLowerCase() === 'neverspam' ? '' : `fileinto ${Quoted(dest)};`)
 
 const From = from => from && `address :all :matches "From" ${Quoted(from)}`
 
@@ -30,7 +31,14 @@ const MultiRule = ({ actions, conditions }) => {
 
   const conditionBlocks = conditions.map(condition => `  allof (${Condition(typeof condition === 'string' ? { from: condition } : condition)})`).join(',\n')
 
-  const actionBlocks = actions.map(action => action.fileinto.map(dest => `  ${Fileinto(dest)}`).join('\n')).join('\n')
+  const actionBlocks = actions
+    .map(action =>
+      action.fileinto
+        .filter(Fileinto)
+        .map(dest => `  ${Fileinto(dest)}`)
+        .join('\n'),
+    )
+    .join('\n')
 
   return `if anyof (\n${conditionBlocks}\n) {\n${actionBlocks}\n}`
 }

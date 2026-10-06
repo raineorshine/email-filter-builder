@@ -1,4 +1,4 @@
-const { DesiredFilters, Key, LabelNames, Plan, Sync } = require('./gmail-sync')
+const { DescribeAction, DesiredFilters, Key, LabelNames, Plan, Sync } = require('./gmail-sync')
 
 const labelIds = { Lists: 'Label_3', Food: 'Label_2', Purchases: 'Label_1' }
 
@@ -25,6 +25,14 @@ describe('DesiredFilters', () => {
 
   test('trash combines with a label', () => {
     expect(DesiredFilters(spec(['noreply@example.com'], ['Food', 'trash']), labelIds)[0].action).toEqual({ addLabelIds: ['TRASH', 'Label_2'] })
+  })
+
+  test('neverspam maps to removing SPAM, not a label', () => {
+    expect(DesiredFilters(spec([{ from: '*@login.example.com', subject: 'Your sign-in code' }], ['neverspam']), labelIds)).toEqual([{ action: { removeLabelIds: ['SPAM'] }, criteria: { query: '(from:(login.example.com) subject:("Your sign-in code"))' } }])
+  })
+
+  test('neverspam combines with archive and a label', () => {
+    expect(DesiredFilters(spec(['alerts@example.com'], ['archive', 'neverspam', 'Food']), labelIds)[0].action).toEqual({ addLabelIds: ['Label_2'], removeLabelIds: ['INBOX', 'SPAM'] })
   })
 
   test('conditions sharing actions are OR-merged into one filter', () => {
@@ -65,6 +73,16 @@ describe('LabelNames', () => {
   test('collects label destinations, deduped, excluding archive and trash', () => {
     const filters = [...spec(['a@example.com'], ['archive', 'Purchases']), ...spec(['b@example.com'], ['trash', 'Purchases', 'Food'])]
     expect(LabelNames(filters)).toEqual(['Purchases', 'Food'])
+  })
+
+  test('neverspam is not a label', () => {
+    expect(LabelNames(spec(['a@example.com'], ['neverspam', 'NeverSpam']))).toEqual([])
+  })
+})
+
+describe('DescribeAction', () => {
+  test('names the system labels and the user labels', () => {
+    expect(DescribeAction({ addLabelIds: ['TRASH', 'Label_2'], removeLabelIds: ['INBOX', 'SPAM'] }, { Label_2: 'Food' })).toBe('trash, +Food, skip inbox, never spam')
   })
 })
 

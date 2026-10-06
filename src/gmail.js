@@ -14,6 +14,12 @@ const isArchive = dest => dest.toLowerCase() === 'archive'
 /** True if a fileinto destination means "move to trash" rather than a label. */
 const isTrash = dest => dest.toLowerCase() === 'trash'
 
+/** True if a fileinto destination means "never send it to Spam" rather than a label. */
+const isNeverSpam = dest => dest.toLowerCase() === 'neverspam'
+
+/** True if a fileinto destination is a label rather than one of the action keywords above. */
+const isLabel = dest => !isArchive(dest) && !isTrash(dest) && !isNeverSpam(dest)
+
 /** Converts one glob piece (the text between wildcards) into Gmail search terms. Gmail matches whole tokens, so a short fragment left dangling by an adjacent wildcard (the "s" of "*s@example.com") is dropped as glob noise. A longer dangling fragment is kept: it is usually the distinctive part of the pattern, and while keeping it risks missing some variants, dropping it risks matching far too much (e.g. "*@promoalerts*.com" must not collapse to "com"). */
 const FromPiece = (piece, i, pieces) => {
   const leftFragment = i > 0 ? (piece.match(/^[a-z0-9]+/i) || [''])[0] : ''
@@ -71,19 +77,20 @@ const chunkTerms = (terms, maxQueryLength) => {
 }
 
 /** Renders a single Gmail filter entry from a merged query and at most one label. */
-const Entry = ({ archive, label, query, trash }) => ['  <entry>', "    <category term='filter'></category>", '    <title>Mail Filter</title>', '    <content></content>', Property('hasTheWord', query), label && Property('label', label), archive && Property('shouldArchive', 'true'), trash && Property('shouldTrash', 'true'), Property('sizeOperator', 's_sl'), Property('sizeUnit', 's_smb'), '  </entry>'].filter(x => x).join('\n')
+const Entry = ({ archive, label, neverSpam, query, trash }) => ['  <entry>', "    <category term='filter'></category>", '    <title>Mail Filter</title>', '    <content></content>', Property('hasTheWord', query), label && Property('label', label), archive && Property('shouldArchive', 'true'), trash && Property('shouldTrash', 'true'), neverSpam && Property('shouldNeverSpam', 'true'), Property('sizeOperator', 's_sl'), Property('sizeUnit', 's_smb'), '  </entry>'].filter(x => x).join('\n')
 
 /** Expands one filter into Gmail filter specs: conditions are OR-merged into as few queries as possible, then one spec is emitted per query per label since Gmail applies at most one label per filter. Shared by the XML renderer and the API sync so the two cannot drift on merging, chunking, or action mapping. */
 const Specs = ({ actions, conditions }, maxQueryLength = DEFAULT_MAX_QUERY_LENGTH) => {
   const destinations = actions.flatMap(action => action.fileinto)
   const archive = destinations.some(isArchive)
   const trash = destinations.some(isTrash)
-  const labels = destinations.filter(dest => !isArchive(dest) && !isTrash(dest))
+  const neverSpam = destinations.some(isNeverSpam)
+  const labels = destinations.filter(isLabel)
 
   const terms = conditions.map(Term).filter(x => x)
   const queries = chunkTerms(terms, maxQueryLength)
 
-  return queries.flatMap(query => (labels.length > 0 ? labels : [null]).map(label => ({ archive, label, query, trash })))
+  return queries.flatMap(query => (labels.length > 0 ? labels : [null]).map(label => ({ archive, label, neverSpam, query, trash })))
 }
 
 /** Expands one filter into Gmail XML entries. */

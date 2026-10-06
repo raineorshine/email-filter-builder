@@ -39,7 +39,7 @@ variation decides the shape of the rule.
 
 Translate into the spec's vocabulary only (README → Spec): `from` (sieve glob), `subject`
 (contiguous substring), `list` (List-Id substring); criteria in one condition AND, conditions in one
-entry OR. Actions are `fileinto` destinations: a label name, `archive` (skip inbox), `trash`.
+entry OR. Actions are `fileinto` destinations: a label name, `archive` (skip inbox), `trash`, `neverspam` (Gmail only: never send to Spam).
 
 Choose the narrowest rule that still covers the whole family:
 

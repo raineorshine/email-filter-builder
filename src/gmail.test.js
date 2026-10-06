@@ -150,6 +150,13 @@ test('trash combines with labels', () => {
   expect(output).toContain(`<apps:property name='shouldTrash' value='true'/>`)
 })
 
+test('neverspam maps to shouldNeverSpam, not a label', () => {
+  const output = gmail([{ actions: [{ fileinto: ['neverspam', 'Bulletins'] }], conditions: [{ from: '*@login.example.com' }] }], { updated })
+  expect(output).toContain(`<apps:property name='shouldNeverSpam' value='true'/>`)
+  expect(output).toContain(`<apps:property name='label' value='Bulletins'/>`)
+  expect(output).not.toContain(`value='neverspam'`)
+})
+
 describe('from globs are translated to Gmail search terms', () => {
   const from = pattern => queries(gmail([{ conditions: [pattern], actions: [{ fileinto: ['X'] }] }], { updated }))[0]
 

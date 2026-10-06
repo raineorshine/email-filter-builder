@@ -167,3 +167,18 @@ test('allow naked email condition', () => {
 if allof (environment :matches "vnd.proton.spam-threshold" "*", spamtest :value "ge" :comparator "i;ascii-numeric" "$\{1}") {return;}
 if allof (address :all :matches "From" "noreply@lyft.com"){fileinto "archive";}`)
 })
+
+test('neverspam renders no fileinto, since Proton has no never-spam action', () => {
+  const rule = conditions =>
+    sieve([{ actions: [{ fileinto: ['neverspam', 'Bulletins'] }], conditions }])
+      .split('\n')
+      .slice(2)
+      .join('\n')
+  expect(rule([{ from: '*@login.example.com' }])).toBe('if allof (address :all :matches "From" "*@login.example.com"){fileinto "Bulletins";}')
+  expect(rule(['a@example.com', 'b@example.com'])).toBe(`if anyof (
+  allof (address :all :matches "From" "a@example.com"),
+  allof (address :all :matches "From" "b@example.com")
+) {
+  fileinto "Bulletins";
+}`)
+})
