@@ -30,7 +30,8 @@ Read the plan. Nothing is written yet.
 
 `--apply` takes a lock, but the dry run does not, so the plan just printed is stale the moment
 another session applies. List sessions (`mcp__ccd_session_mgmt__list_sessions`) and look for another
-`💾 `. If one is there, wait rather than applying — and re-run step 1 afterwards, because its plan was
+`💾 ` whose `cwd` is an email-filter-builder worktree — a `💾 ` in another repo writes some other
+resource and does not contend for this account. If one is there, wait rather than applying — and re-run step 1 afterwards, because its plan was
 computed against the account as it was.
 
 Re-run step 1 too if anything else happened between the dry run and here.
