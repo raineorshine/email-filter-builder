@@ -182,10 +182,14 @@ Near-identical names across namespaces are easy to misread in the "Label as" pic
 
 Per-app and per-mechanism detail lives under `docs/`. Read the one for an app before driving it or reasoning about its behaviour.
 
+A learning about one app goes in that app's doc, not here: this file is capped at 300 lines.
+
 - [docs/browser-automation.md](docs/browser-automation.md) — what held across every web app driven from these sessions: refs over coordinates, dispatched events, hover-revealed controls, reading the data layer, getting bulk data out of a page.
 - [docs/gmail-console.md](docs/gmail-console.md) — the OAuth app's Google Cloud project and scopes, and the Gmail settings UI as a fallback to `sync.js`.
 - [docs/shortwave.md](docs/shortwave.md) — built-in labels, auto-apply rules and their IndexedDB export, send-as aliases and reply-from, driving the web app.
 - [docs/protonmail.md](docs/protonmail.md) — filter order, what the UI filter builder can express, reading filters over the API, forwarding, checking where mail landed, driving the settings UI.
+
+`AGENTS.local.md` cites these docs' sections by name, so moving or renaming one means updating its pointers there too, under the mutex.
 
 ## Gmail
 
