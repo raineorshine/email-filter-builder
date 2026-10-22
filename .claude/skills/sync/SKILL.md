@@ -42,8 +42,18 @@ Swap the prefix to `💾 ` **before** the command, not after it returns — the 
 while the write is in flight. Do not report this.
 
 ```bash
-node src/sync.js --apply
+GMAIL_SYNC_SESSION_TITLE='<this session title>' node src/sync.js --apply
 ```
+
+Pass the title read in step 1, single-quoted (an apostrophe in it becomes `'\''`). The lock records it
+beside the session id, so a session refused while this one applies prints a link to this chat by name.
+
+**If the apply refuses because another session holds the lock**, tell the user which chat it is by
+pasting the `link` line it printed — `[title](#local_…)` — verbatim; the app renders it as a link
+that opens that session. When there is no `link` line (a terminal session, or a lock taken before
+ids were recorded), name the holder by its `title`, branch and worktree instead. Never build a link
+from a session id you did not read from that output. Put the title back to what it was before the
+`💾 ` — this session is not writing — and wait, then re-run step 1.
 
 It prompts before a destructive run and refuses without a terminal to ask; `--yes` skips the prompt.
 If it stops for that confirmation and the user has to click, the title stays `💾 ` while it waits — a

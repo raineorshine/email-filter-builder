@@ -3,7 +3,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const Lock = require('./lock')
-const { Holder, STALE_MS } = Lock
+const { Holder, Link, STALE_MS } = Lock
 
 /** A pid that has certainly exited: spawned and reaped before the test reads it. */
 const deadPid = () => spawnSync(process.execPath, ['-e', '']).pid
@@ -20,9 +20,9 @@ afterEach(() => {
 })
 
 /** Writes a lock held by someone else, without going through Lock(). */
-const held = pid => {
+const held = (pid, extra = {}) => {
   fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(path.join(dir, 'holder.json'), JSON.stringify({ acquired: Date.now(), branch: 'other', pid, session: 'other-session', worktree: '/elsewhere' }))
+  fs.writeFileSync(path.join(dir, 'holder.json'), JSON.stringify({ acquired: Date.now(), branch: 'other', pid, session: 'other-session', worktree: '/elsewhere', ...extra }))
 }
 
 test('acquires when the lock is free, recording the holder', () => {
@@ -44,6 +44,35 @@ test('names the holding session and worktree in the refusal', () => {
 
   expect(() => Lock({ dir, log: silent })).toThrow(/other-session/)
   expect(() => Lock({ dir, log: silent })).toThrow(/\/elsewhere/)
+})
+
+test('links a desktop-app holder by its recorded title and id', () => {
+  held(process.ppid, { session: 'local_abc-123', title: 'Widen [the] rule' })
+
+  expect(() => Lock({ dir, log: silent })).toThrow('link      [Widen (the) rule](#local_abc-123)')
+})
+
+test('prints no link for a holder without a desktop-app session id', () => {
+  held(process.ppid, { title: 'Terminal run' })
+
+  expect(() => Lock({ dir, log: silent })).toThrow(/title     Terminal run/)
+  expect(() => Lock({ dir, log: silent })).not.toThrow(/link/)
+})
+
+test('falls back to the branch when the holder recorded no title', () => {
+  expect(Link({ branch: 'feature', session: 'local_x' })).toBe('[feature](#local_x)')
+  expect(Link(null)).toBe(null)
+})
+
+test('records the session title passed in by the caller', () => {
+  process.env.GMAIL_SYNC_SESSION_TITLE = 'My chat'
+  try {
+    Lock({ dir, log: silent })
+  } finally {
+    delete process.env.GMAIL_SYNC_SESSION_TITLE
+  }
+
+  expect(Holder(dir).title).toBe('My chat')
 })
 
 test('reclaims a lock whose holder process is gone', () => {

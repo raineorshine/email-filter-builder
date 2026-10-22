@@ -49,10 +49,18 @@ const abandoned = (dir, holder) => {
   }
 }
 
+/** A Markdown link to the holding session, or null. The desktop app renders `[title](#local_…)` as a link that opens that session, so a refused session can hand the user the chat to go back to in one click. Only a `local_` id is a desktop session; a terminal or SDK id would render as a dead anchor, so it gets no link. Brackets in the title would close the link text early, so they are swapped for parentheses. */
+const Link = holder => {
+  if (!holder || !/^local_/.test(holder.session || '')) return null
+  const text = (holder.title || holder.branch || 'session').replace(/\[/g, '(').replace(/\]/g, ')')
+  return `[${text}](#${holder.session})`
+}
+
 /** Names the holder in the terms a user can act on: which chat to go back to, and which worktree it is running in. */
 const describe = (dir, holder) => {
   if (!holder) return `  lock      ${dir}\n  holder    (unrecorded — the acquire was interrupted)`
-  return [`  worktree  ${holder.worktree}`, `  branch    ${holder.branch}`, `  session   ${holder.session || '(unrecorded)'}`, `  held for  ${Math.round((Date.now() - holder.acquired) / 1000)}s`, `  lock      ${dir}`].join('\n')
+  const link = Link(holder)
+  return [`  worktree  ${holder.worktree}`, `  branch    ${holder.branch}`, `  session   ${holder.session || '(unrecorded)'}`, ...(holder.title ? [`  title     ${holder.title}`] : []), ...(link ? [`  link      ${link}`] : []), `  held for  ${Math.round((Date.now() - holder.acquired) / 1000)}s`, `  lock      ${dir}`].join('\n')
 }
 
 /** Creates the lock directory, or returns false if it already exists. The mkdir is the atomic step; the metadata is written immediately after, and a reader that finds none falls back to the age cap. */
@@ -72,6 +80,8 @@ const take = dir => {
         branch: git(['rev-parse', '--abbrev-ref', 'HEAD']) || '(unknown)',
         pid: process.pid,
         session: process.env.CLAUDE_CODE_HOST_SESSION_ID || process.env.CLAUDE_CODE_SESSION_ID || '',
+        // The session's sidebar title, which no env var carries: the sync skill reads it from the app and passes it in, so the link a refused session prints reads as the chat the user knows.
+        title: process.env.GMAIL_SYNC_SESSION_TITLE || '',
         worktree: git(['rev-parse', '--show-toplevel']) || process.cwd(),
       },
       null,
@@ -107,6 +117,7 @@ const Lock = ({ dir = LockDir(), log = console.info } = {}) => {
 
 module.exports = Lock
 module.exports.Holder = Holder
+module.exports.Link = Link
 module.exports.LockDir = LockDir
 module.exports.STALE_MS = STALE_MS
 module.exports.abandoned = abandoned
