@@ -16,7 +16,9 @@ directly, so the prefixes go on wherever a sync happens.
 
 Read the session's title (`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a
 `🔍 ` prefix (`mcp__ccd_session_mgmt__set_session_title`), replacing any existing lifecycle prefix
-rather than stacking. Do not report this.
+rather than stacking. In a cloud session, where those do not exist, `mcp__claude-code-remote__get_session` with no
+`session_id` describes this session (`ccr.id`, `ccr.title`), and
+`mcp__claude-code-remote__set_session_title` takes that id. Skip this only when neither tool exists. Do not report this.
 
 Then:
 

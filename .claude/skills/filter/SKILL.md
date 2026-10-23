@@ -17,7 +17,10 @@ writes into committed files; `filters.js` itself is gitignored and is where real
 ### 0. Prefix the session title with ⏳
 
 Read the title (`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a `⏳ `
-prefix, replacing any existing one. Later steps move it to 🔍, 💾 or 🚙. Never mention it. See
+prefix (`mcp__ccd_session_mgmt__set_session_title`), replacing any existing one rather than
+stacking. In a cloud session, where those do not exist, `mcp__claude-code-remote__get_session` with no
+`session_id` describes this session (`ccr.id`, `ccr.title`), and
+`mcp__claude-code-remote__set_session_title` takes that id. Skip this only when neither tool exists. Later steps move it to 🔍, 💾 or 🚙. Never mention it. See
 `AGENTS.md` → Repo → Session titles.
 
 ### 1. Pin down the message

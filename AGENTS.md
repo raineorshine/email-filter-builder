@@ -151,9 +151,13 @@ editing the spec is a merge problem, which git and a re-read solve; two sessions
 which is what the prefix is for.
 
 **Ask which session this is before renaming one.** `mcp__ccd_session_mgmt__get_session` with
-`"self"` is the only answer, and it changes under a fork — a forked session carries the transcript
-and the id read earlier in it, so reusing that id retitles the parent, often the one still mid-sync
-and the one the sidebar most needs to be true.
+`"self"` is the answer, or in a cloud session `mcp__claude-code-remote__get_session` with no
+`session_id` (`ccr.id`); both answer for the calling session, so a fork gets its own id from either.
+An id read earlier does not survive a fork — a forked session carries the transcript and the id read
+earlier in it, so reusing that id retitles the parent, often the one still mid-sync and the one the
+sidebar most needs to be true. The title is set with `mcp__ccd_session_mgmt__set_session_title`, or
+in a cloud session with `mcp__claude-code-remote__set_session_title` and that id; skip titling only
+when neither tool exists.
 
 A cloud session never reaches `🔍 `, `💾 ` or `🚀 `. `filters.js` and the OAuth credentials sit
 outside the repo (**Files outside git**), so a fresh clone has no spec to diff and no way to reach

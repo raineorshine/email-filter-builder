@@ -102,7 +102,10 @@ MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")" && 
 
 **Once the push in step 6 succeeds, and not before,** read the session's title
 (`mcp__ccd_session_mgmt__get_session` with `"self"`) and set it back with a `🚀 ` prefix
-(`mcp__ccd_session_mgmt__set_session_title`), replacing the `📦 ` rather than stacking. It stays
+(`mcp__ccd_session_mgmt__set_session_title`), replacing the `📦 ` rather than stacking.
+In a cloud session, where those do not exist, `mcp__claude-code-remote__get_session` with no
+`session_id` describes this session (`ccr.id`, `ccr.title`), and
+`mcp__claude-code-remote__set_session_title` takes that id. Skip this only when neither tool exists. It stays
 through the report and after it, until the session starts something else; never clear it to leave a
 bare title. If the ship never got that far, no `🚀 ` went on and there is nothing to undo — check the
 title still says what is true now (`📦 ` for a gated branch, `🚙 ` if it waits on the user) and
@@ -130,7 +133,8 @@ Print `🚀 Shipped` as the last line of the response, after the learn report.
 
 ### 10. Archive the session
 
-Last of all, after `learn` has landed its commit and `🚀 ` is back on the title, archive this session: `mcp__ccd_session_mgmt__archive_session` with `"self"`
+Last of all, after `learn` has landed its commit and `🚀 ` is back on the title, archive this session: `mcp__ccd_session_mgmt__archive_session` with `"self"`,
+or in a cloud session `mcp__claude-code-remote__archive_session` with this session's `ccr.id`,
 and a reason naming the ship. It is the final tool call of the ship, made in the same response as the completion message and after it — nothing after the
 archive reaches the user. Asking to ship is the agreement to archive; do not ask again.
 
